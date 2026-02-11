@@ -45,7 +45,7 @@ interface ProfileData {
 
 interface ProfileProps {
     onBack: () => void
-    onUpdate?: () => void
+    onUpdate?: (userId?: string) => void
 }
 
 export function Profile({ onBack, onUpdate }: ProfileProps) {
@@ -99,8 +99,8 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
 
                 setProfile(initialProfile)
 
-                // Auto-switch to view mode if profile has at least a name and goal
-                if (data?.full_name && data?.goal && data?.weight && data?.height) {
+                // Auto-switch to view mode if profile has at least a name
+                if (data?.full_name || session.user.user_metadata?.full_name) {
                     setIsEditing(false)
                 } else {
                     setIsEditing(true)
@@ -147,9 +147,10 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
             if (dbError) throw dbError
 
             setProfile(prev => ({ ...prev, avatar_url: publicUrl }))
-            if (onUpdate) onUpdate()
+            if (onUpdate) onUpdate(session.user.id)
             toast.success('Avatar updated and saved!')
         } catch (error: any) {
+            console.error('Supabase Avatar Upload Error:', error)
             toast.error('Error uploading avatar: Ensure "avatars" bucket is public.')
         } finally {
             setUploading(false)
@@ -180,10 +181,16 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
             })
 
             if (error) throw error
-            if (onUpdate) onUpdate()
+            if (onUpdate) onUpdate(session.user.id)
             toast.success('Profile updated successfully!')
             setIsEditing(false)
         } catch (error: any) {
+            console.error('Supabase Profile Sync Error:', {
+                message: error.message,
+                code: error.code,
+                details: error.details,
+                hint: error.hint
+            })
             toast.error(error.message || 'Error updating profile')
         } finally {
             setSaving(false)
