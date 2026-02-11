@@ -7,10 +7,11 @@ import { QuizFlow } from '@/components/pages/quiz-flow'
 import { RecommendationsScreen } from '@/components/pages/recommendations'
 import { MealTracker } from '@/components/pages/meal-tracker'
 import { Dashboard } from '@/components/pages/dashboard'
+import { Profile } from '@/components/pages/profile'
 import { Header } from '@/components/header'
-import { authStorage } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
 
-type PageView = 'dashboard' | 'landing' | 'quiz' | 'recommendations' | 'meal-tracker'
+type PageView = 'dashboard' | 'landing' | 'quiz' | 'recommendations' | 'meal-tracker' | 'profile'
 
 export default function Page() {
   const router = useRouter()
@@ -18,11 +19,54 @@ export default function Page() {
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({})
   const [healthPreference, setHealthPreference] = useState(50)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const [userData, setUserData] = useState<any>(null)
+
+  const fetchProfile = async (userId: string) => {
+    const { data } = await supabase
+      .from('profiles')
+      .select('full_name, avatar_url, age, weight, height, goal, allergies')
+      .eq('id', userId)
+      .single()
+
+    if (data) {
+      setUserData({ ...data, id: userId })
+    }
+  }
 
   useEffect(() => {
-    const user = authStorage.getUser()
-    if (user) {
-      setIsLoggedIn(true)
+    // Check initial session
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session) {
+        setIsLoggedIn(true)
+        fetchProfile(session.user.id)
+
+        // Check for view redirect
+        const urlParams = new URLSearchParams(window.location.search)
+        const view = urlParams.get('view') as PageView
+        if (view === 'dashboard') {
+          setCurrentView('dashboard')
+          window.history.replaceState({}, '', '/')
+        }
+      }
+    }
+
+    checkSession()
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+        setIsLoggedIn(true)
+        if (session) fetchProfile(session.user.id)
+      } else if (event === 'SIGNED_OUT') {
+        setIsLoggedIn(false)
+        setUserData(null)
+        setCurrentView('landing')
+      }
+    })
+
+    return () => {
+      subscription.unsubscribe()
     }
   }, [])
 
@@ -61,10 +105,12 @@ export default function Page() {
         currentView={currentView}
         onNavigate={handleNavigate}
         isLoggedIn={isLoggedIn}
+        userData={userData}
       />
       {currentView === 'dashboard' && (
         <Dashboard
           onNavigate={handleNavigate}
+          userData={userData}
         />
       )}
       {currentView === 'landing' && (
@@ -92,6 +138,12 @@ export default function Page() {
       )}
       {currentView === 'meal-tracker' && (
         <MealTracker onBack={handleBackToLanding} />
+      )}
+      {currentView === 'profile' && (
+        <Profile
+          onBack={() => setCurrentView('dashboard')}
+          onUpdate={() => fetchProfile(userData?.id || '')}
+        />
       )}
     </main>
   )
