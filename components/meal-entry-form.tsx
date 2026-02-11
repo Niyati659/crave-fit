@@ -18,7 +18,7 @@ export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
     "manual" | "macro" | "photo" | "quick"
   >("manual")
 
-  
+
   const [photoFile, setPhotoFile] = useState<File | null>(null)
   const [photoLoading, setPhotoLoading] = useState(false)
   // 🔹 EXISTING FORM STATE (UNCHANGED)
@@ -39,7 +39,7 @@ export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
   })
 
   // 🔥 UPDATED SUBMIT HANDLER (EXTENDED — NOT REPLACED)
-  const handleSubmit = async(e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
 
     // 🥗 Manual Mode
@@ -69,7 +69,7 @@ export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
         })
       }
     }
-    
+
 
     // 🧮 Macro Mode (Your original logic)
     if (mode === "macro") {
@@ -90,7 +90,7 @@ export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
     }
 
     // 📸 Photo Mode
-  
+
     if (mode === "photo") {
       if (!photoFile) {
         alert("Upload a meal photo")
@@ -150,10 +150,10 @@ export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
 
       {/* 🔥 MODE SWITCHER (NEW) */}
       <div className="grid grid-cols-4 gap-2">
-        <Button type="button" variant={mode==="manual"?"default":"outline"} onClick={()=>setMode("manual")}>Manual</Button>
-        <Button type="button" variant={mode==="macro"?"default":"outline"} onClick={()=>setMode("macro")}>Macros</Button>
-        <Button type="button" variant={mode==="photo"?"default":"outline"} onClick={()=>setMode("photo")}>Photo</Button>
-        <Button type="button" variant={mode==="quick"?"default":"outline"} onClick={()=>setMode("quick")}>Quick</Button>
+        <Button type="button" variant={mode === "manual" ? "default" : "outline"} onClick={() => setMode("manual")}>Manual</Button>
+        <Button type="button" variant={mode === "macro" ? "default" : "outline"} onClick={() => setMode("macro")}>Macros</Button>
+        <Button type="button" variant={mode === "photo" ? "default" : "outline"} onClick={() => setMode("photo")}>Photo</Button>
+        <Button type="button" variant={mode === "quick" ? "default" : "outline"} onClick={() => setMode("quick")}>Quick</Button>
       </div>
 
       {/* 🥗 MANUAL MODE (NEW) */}

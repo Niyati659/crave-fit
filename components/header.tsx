@@ -64,9 +64,9 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
                     </Button>
 
                     <Button
-                        variant={currentView === 'recommendations' ? 'secondary' : 'ghost'}
+                        variant={currentView === 'browse' ? 'secondary' : 'ghost'}
                         size="sm"
-                        onClick={() => onNavigate('recommendations')}
+                        onClick={() => onNavigate('browse')}
                         className="flex items-center gap-2 font-semibold"
                     >
                         <Search className="w-4 h-4" />
@@ -81,6 +81,16 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
                     >
                         <UtensilsCrossed className="w-4 h-4" />
                         <span className="hidden md:inline">Tracker</span>
+                    </Button>
+
+                    <Button
+                        variant={currentView === 'chef' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={() => onNavigate('chef')}
+                        className="flex items-center gap-2 font-semibold"
+                    >
+                        <span className="text-base" style={{ filter: 'drop-shadow(0 0 5px #fb923c) saturate(2)' }}>👻</span>
+                        <span className="hidden md:inline">Chef Buddy</span>
                     </Button>
 
                     <Button

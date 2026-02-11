@@ -15,6 +15,7 @@ interface RecommendationsScreenProps {
   onHealthPreferenceChange: (value: number) => void
   onBack: () => void
   onMealTrackerClick?: () => void
+  onCookWithChef?: (recipe: { name: string, instructions: string[] }) => void
 }
 
 export function RecommendationsScreen({
@@ -23,6 +24,7 @@ export function RecommendationsScreen({
   onHealthPreferenceChange,
   onBack,
   onMealTrackerClick,
+  onCookWithChef,
 }: RecommendationsScreenProps) {
   const [selectedFood, setSelectedFood] = useState<Food | null>(null)
   const recommendedFoods = getRecommendedFoods(quizAnswers, healthPreference)
@@ -172,7 +174,11 @@ export function RecommendationsScreen({
       </div>
 
       {/* Food Detail Modal */}
-      <FoodDetailModal food={selectedFood} onClose={() => setSelectedFood(null)} />
+      <FoodDetailModal
+        food={selectedFood}
+        onClose={() => setSelectedFood(null)}
+        onCookWithChef={onCookWithChef}
+      />
     </div>
   )
 }
