@@ -7,25 +7,32 @@ import { QuizFlow } from '@/components/pages/quiz-flow'
 import { RecommendationsScreen } from '@/components/pages/recommendations'
 import { MealTracker } from '@/components/pages/meal-tracker'
 import { Dashboard } from '@/components/pages/dashboard'
+import { Header } from '@/components/header'
 import { authStorage } from '@/lib/auth'
 
 type PageView = 'dashboard' | 'landing' | 'quiz' | 'recommendations' | 'meal-tracker'
 
 export default function Page() {
   const router = useRouter()
-  const [currentView, setCurrentView] = useState<PageView>('dashboard')
+  const [currentView, setCurrentView] = useState<PageView>('landing')
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({})
   const [healthPreference, setHealthPreference] = useState(50)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
 
   useEffect(() => {
     const user = authStorage.getUser()
-    if (!user) {
-      router.push('/auth/login')
-    } else {
+    if (user) {
       setIsLoggedIn(true)
     }
-  }, [router])
+  }, [])
+
+  const handleNavigate = (view: PageView) => {
+    if (view !== 'landing' && !isLoggedIn) {
+      router.push('/auth/login')
+      return
+    }
+    setCurrentView(view)
+  }
 
   const handleStartQuiz = () => {
     setCurrentView('quiz')
@@ -46,29 +53,25 @@ export default function Page() {
     setCurrentView('landing')
   }
 
-  if (!isLoggedIn) {
-    return (
-      <main className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-muted-foreground font-semibold">Loading CraveFit...</p>
-        </div>
-      </main>
-    )
-  }
+  // No early return for !isLoggedIn to allow Landing Page visibility
 
   return (
     <main className="min-h-screen bg-background">
+      <Header
+        currentView={currentView}
+        onNavigate={handleNavigate}
+        isLoggedIn={isLoggedIn}
+      />
       {currentView === 'dashboard' && (
-        <Dashboard 
-          onNavigate={setCurrentView}
+        <Dashboard
+          onNavigate={handleNavigate}
         />
       )}
       {currentView === 'landing' && (
-        <LandingPage 
-          onStartQuiz={handleStartQuiz} 
-          onNavigate={setCurrentView}
-          onMealTrackerClick={() => setCurrentView('meal-tracker')}
+        <LandingPage
+          onStartQuiz={() => handleNavigate('quiz')}
+          onNavigate={handleNavigate}
+          onMealTrackerClick={() => handleNavigate('meal-tracker')}
         />
       )}
       {currentView === 'quiz' && (
@@ -84,7 +87,7 @@ export default function Page() {
           healthPreference={healthPreference}
           onHealthPreferenceChange={setHealthPreference}
           onBack={handleBackToLanding}
-          onMealTrackerClick={() => setCurrentView('meal-tracker')}
+          onMealTrackerClick={() => handleNavigate('meal-tracker')}
         />
       )}
       {currentView === 'meal-tracker' && (
