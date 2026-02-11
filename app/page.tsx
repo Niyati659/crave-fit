@@ -9,9 +9,10 @@ import { MealTracker } from '@/components/pages/meal-tracker'
 import { Dashboard } from '@/components/pages/dashboard'
 import { Profile } from '@/components/pages/profile'
 import { Header } from '@/components/header'
+import { ChefFriend } from '@/components/chef-friend'
 import { supabase } from '@/lib/supabase'
 
-type PageView = 'dashboard' | 'landing' | 'quiz' | 'recommendations' | 'meal-tracker' | 'profile'
+type PageView = 'dashboard' | 'landing' | 'quiz' | 'recommendations' | 'meal-tracker' | 'profile' | 'chef'
 
 export default function Page() {
   const router = useRouter()
@@ -20,6 +21,7 @@ export default function Page() {
   const [healthPreference, setHealthPreference] = useState(50)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userData, setUserData] = useState<any>(null)
+  const [activeRecipe, setActiveRecipe] = useState<{ name: string, instructions: string[] } | undefined>(undefined)
 
   const fetchProfile = async (userId: string) => {
     const { data } = await supabase
@@ -134,6 +136,10 @@ export default function Page() {
           onHealthPreferenceChange={setHealthPreference}
           onBack={handleBackToLanding}
           onMealTrackerClick={() => handleNavigate('meal-tracker')}
+          onCookWithChef={(recipe: { name: string, instructions: string[] }) => {
+            setActiveRecipe(recipe)
+            setCurrentView('chef')
+          }}
         />
       )}
       {currentView === 'meal-tracker' && (
@@ -143,6 +149,15 @@ export default function Page() {
         <Profile
           onBack={() => setCurrentView('dashboard')}
           onUpdate={() => fetchProfile(userData?.id || '')}
+        />
+      )}
+      {currentView === 'chef' && (
+        <ChefFriend
+          recipe={activeRecipe}
+          onClose={() => {
+            setCurrentView('recommendations')
+            setActiveRecipe(undefined)
+          }}
         />
       )}
     </main>

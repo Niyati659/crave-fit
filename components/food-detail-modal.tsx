@@ -9,6 +9,7 @@ import Image from 'next/image'
 interface FoodDetailModalProps {
   food: Food | null
   onClose: () => void
+  onCookWithChef?: (recipe: { name: string, instructions: string[] }) => void
 }
 
 function getHealthScoreColor(score: number): string {
@@ -17,7 +18,7 @@ function getHealthScoreColor(score: number): string {
   return '#ef4444'
 }
 
-export function FoodDetailModal({ food, onClose }: FoodDetailModalProps) {
+export function FoodDetailModal({ food, onClose, onCookWithChef }: FoodDetailModalProps) {
   if (!food) return null
 
   const healthColor = getHealthScoreColor(food.healthScore)
@@ -155,6 +156,20 @@ export function FoodDetailModal({ food, onClose }: FoodDetailModalProps) {
                         </li>
                       ))}
                     </ol>
+                    {onCookWithChef && (
+                      <div className="pt-4">
+                        <Button
+                          onClick={() => {
+                            onCookWithChef(food.healthierRecipe!)
+                            onClose()
+                          }}
+                          className="w-full bg-primary hover:bg-primary/90 text-primary-foreground font-bold flex items-center justify-center gap-2"
+                        >
+                          <span className="text-xl" style={{ filter: 'drop-shadow(0 0 5px #fb923c) saturate(2)' }}>👻</span>
+                          Cook with Chef Buddy
+                        </Button>
+                      </div>
+                    )}
                   </div>
 
                   {/* Savings Display */}

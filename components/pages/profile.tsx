@@ -138,9 +138,17 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
                 .from('avatars')
                 .getPublicUrl(filePath)
 
+            // Persist immediately to database
+            const { error: dbError } = await supabase.from('profiles').update({
+                avatar_url: publicUrl,
+                updated_at: new Date().toISOString()
+            }).eq('id', session.user.id)
+
+            if (dbError) throw dbError
+
             setProfile(prev => ({ ...prev, avatar_url: publicUrl }))
             if (onUpdate) onUpdate()
-            toast.success('Avatar updated! Save profile to persist.')
+            toast.success('Avatar updated and saved!')
         } catch (error: any) {
             toast.error('Error uploading avatar: Ensure "avatars" bucket is public.')
         } finally {

@@ -84,6 +84,16 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
                     </Button>
 
                     <Button
+                        variant={currentView === 'chef' ? 'secondary' : 'ghost'}
+                        size="sm"
+                        onClick={() => onNavigate('chef')}
+                        className="flex items-center gap-2 font-semibold"
+                    >
+                        <span className="text-base" style={{ filter: 'drop-shadow(0 0 5px #fb923c) saturate(2)' }}>👻</span>
+                        <span className="hidden md:inline">Chef Buddy</span>
+                    </Button>
+
+                    <Button
                         variant={currentView === 'profile' ? 'secondary' : 'ghost'}
                         size="sm"
                         onClick={() => onNavigate('profile')}
