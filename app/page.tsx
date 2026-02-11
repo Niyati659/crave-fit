@@ -11,11 +11,21 @@ import { Profile } from '@/components/pages/profile'
 import { Header } from '@/components/header'
 import { ChefFriend } from '@/components/chef-friend'
 import { supabase } from '@/lib/supabase'
+import { BrowseScreen } from '@/components/pages/browse'
 
-type PageView = 'dashboard' | 'landing' | 'quiz' | 'recommendations' | 'meal-tracker' | 'profile' | 'chef'
+type PageView =
+  | 'dashboard'
+  | 'landing'
+  | 'quiz'
+  | 'recommendations'
+  | 'browse'
+  | 'meal-tracker'
+  | 'profile'
+  | 'chef'
 
 export default function Page() {
   const router = useRouter()
+
   const [currentView, setCurrentView] = useState<PageView>('landing')
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({})
   const [healthPreference, setHealthPreference] = useState(50)
@@ -36,27 +46,22 @@ export default function Page() {
   }
 
   useEffect(() => {
-    // Check initial session
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
+      const {
+        data: { session },
+      } = await supabase.auth.getSession()
+
       if (session) {
         setIsLoggedIn(true)
         fetchProfile(session.user.id)
-
-        // Check for view redirect
-        const urlParams = new URLSearchParams(window.location.search)
-        const view = urlParams.get('view') as PageView
-        if (view === 'dashboard') {
-          setCurrentView('dashboard')
-          window.history.replaceState({}, '', '/')
-        }
       }
     }
 
     checkSession()
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setIsLoggedIn(true)
         if (session) fetchProfile(session.user.id)
@@ -72,34 +77,29 @@ export default function Page() {
     }
   }, [])
 
+  // 🔥 Controlled Navigation
   const handleNavigate = (view: PageView) => {
+    // ❌ Block manual access to recommendations
+    if (view === 'recommendations') return
+
+    // 🔐 Protect non-landing routes
     if (view !== 'landing' && !isLoggedIn) {
       router.push('/auth/login')
       return
     }
+
     setCurrentView(view)
   }
 
-  const handleStartQuiz = () => {
-    setCurrentView('quiz')
-    setQuizAnswers({})
-  }
-
+  // Quiz → Recommendations ONLY
   const handleQuizComplete = (answers: Record<string, string>) => {
     setQuizAnswers(answers)
     setCurrentView('recommendations')
   }
 
-  const handleSkipQuiz = () => {
-    setCurrentView('recommendations')
-    setQuizAnswers({})
-  }
-
   const handleBackToLanding = () => {
     setCurrentView('landing')
   }
-
-  // No early return for !isLoggedIn to allow Landing Page visibility
 
   return (
     <main className="min-h-screen bg-background">
@@ -109,26 +109,27 @@ export default function Page() {
         isLoggedIn={isLoggedIn}
         userData={userData}
       />
+
       {currentView === 'dashboard' && (
-        <Dashboard
-          onNavigate={handleNavigate}
-          userData={userData}
-        />
+        <Dashboard onNavigate={handleNavigate} userData={userData} />
       )}
+
       {currentView === 'landing' && (
         <LandingPage
-          onStartQuiz={() => handleNavigate('quiz')}
+          onStartQuiz={() => setCurrentView('quiz')}
           onNavigate={handleNavigate}
           onMealTrackerClick={() => handleNavigate('meal-tracker')}
         />
       )}
+
       {currentView === 'quiz' && (
         <QuizFlow
           onComplete={handleQuizComplete}
-          onSkip={handleSkipQuiz}
+          onSkip={() => setCurrentView('recommendations')}
           onBack={handleBackToLanding}
         />
       )}
+
       {currentView === 'recommendations' && (
         <RecommendationsScreen
           quizAnswers={quizAnswers}
@@ -142,9 +143,15 @@ export default function Page() {
           }}
         />
       )}
+
+      {currentView === 'browse' && (
+        <BrowseScreen onBack={handleBackToLanding} />
+      )}
+
       {currentView === 'meal-tracker' && (
         <MealTracker onBack={handleBackToLanding} />
       )}
+
       {currentView === 'profile' && (
         <Profile
           onBack={() => setCurrentView('dashboard')}

@@ -13,10 +13,10 @@ interface Recipe {
     ingredients?: string[]
 }
 
-interface ChefFriendProps {
-    recipe?: Recipe
-    onClose: () => void
-}
+// interface ChefFriendProps {
+//     recipe?: Recipe
+//     onClose: () => void
+// }
 
 export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) {
     const [recipe, setRecipe] = useState<Recipe | undefined>(initialRecipe)
