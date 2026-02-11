@@ -64,9 +64,9 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
                     </Button>
 
                     <Button
-                        variant={currentView === 'recommendations' ? 'secondary' : 'ghost'}
+                        variant={currentView === 'browse' ? 'secondary' : 'ghost'}
                         size="sm"
-                        onClick={() => onNavigate('recommendations')}
+                        onClick={() => onNavigate('browse')}
                         className="flex items-center gap-2 font-semibold"
                     >
                         <Search className="w-4 h-4" />
