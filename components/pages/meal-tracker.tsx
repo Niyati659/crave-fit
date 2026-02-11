@@ -15,6 +15,9 @@ import {
 import { MealEntryForm } from '@/components/meal-entry-form'
 import { NutritionProgressBar } from '@/components/nutrition-progress-bar'
 import { MealSuggestions } from '@/components/meal-suggestions'
+import { mockProfile } from '@/lib/mock-profile'
+import { calcCalories } from '@/lib/calc-calories'
+import { fetchNutrition } from '@/lib/nutrition-api'
 
 interface MealTrackerProps {
   onBack: () => void
@@ -43,12 +46,35 @@ export function MealTracker({ onBack }: MealTrackerProps) {
   }, [meals, selectedDate])
 
   const progress = calculateProgress(meals)
+
+  // 🔥 Calculate calorie goal from profile
+  const calorieGoal = calcCalories(mockProfile)
+
+  // Override only calories (macros stay same)
+  const dynamicGoals = {
+    ...DEFAULT_DAILY_GOALS,
+    calories: calorieGoal,
+  }
+
   const dailyProgress: DailyProgress = {
     date: selectedDate,
     meals,
-    goals: DEFAULT_DAILY_GOALS,
+    goals: dynamicGoals,
     ...progress,
   }
+
+  /*
+  🔗 FUTURE SUPABASE INTEGRATION
+
+  Replace mockProfile with:
+
+  const { data } = await supabase
+    .from("users")
+    .select("*")
+    .eq("id", userId)
+    .single()
+  */
+
 
   const suggestedMeals = getSuggestedMeals(dailyProgress)
 
@@ -282,13 +308,17 @@ export function MealTracker({ onBack }: MealTrackerProps) {
                 </Button>
               </Card>
             ) : (
-              <div className="space-y-4">
+              <div className="space-y-4 max-h-[260px] overflow-y-auto pr-2">
                 {meals.map((meal) => (
                   <Card key={meal.id} className="p-5 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
                         <div className="flex items-center gap-3 mb-3">
-                          <p className="font-bold text-lg text-foreground">{meal.name}</p>
+                          <p className="font-bold text-lg text-foreground">
+                            {meal.detectedFood
+                              ? `${meal.detectedFood} (${meal.name})`
+                              : meal.name}
+                          </p>
                           <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
                             {meal.time}
                           </span>
