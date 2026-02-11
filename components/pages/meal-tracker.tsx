@@ -50,42 +50,52 @@ export function MealTracker({ onBack }: MealTrackerProps) {
   const [waterMl, setWaterMl] = useState(0)
 
 
-  const addWater = async (ml: number) => {
-  if (!user) return
+const addWater = async (ml: number) => {
+  if (!user) {
+    console.error("No user found")
+    return
+  }
 
-  await updateWaterLogs(user.id, selectedDate, ml)
+  const { error } = await supabase
+    .from("water_logs")
+    .insert({
+      user_id: user.id,
+      date: selectedDate,
+      ml,
+    })
 
+  if (error) {
+    console.error("Water insert error:", error)
+    return
+  }
+
+  // Update UI instantly
   setWaterMl((prev) => prev + ml)
 }
+
 useEffect(() => {
   if (!user) return
 
   const fetchWater = async () => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("water_logs")
-      .select("*")
+      .select("ml")
       .eq("user_id", user.id)
       .eq("date", selectedDate)
-      .single()
 
-    if (data) {
-      setWaterMl(data.ml)
-    } else {
-      setWaterMl(0)
-    }
+    if (error) return
+
+    const total = data.reduce(
+      (sum, row) => sum + row.ml,
+      0
+    )
+
+    setWaterMl(total)
   }
 
   fetchWater()
 }, [user, selectedDate])
 
-  useEffect(() => {
-  const getUser = async () => {
-    const { data } = await supabase.auth.getUser()
-    setUser(data.user)
-  }
-
-  getUser()
-}, [])
 useEffect(() => {
   if (!user) return
 
@@ -107,45 +117,47 @@ useEffect(() => {
   fetchProfile()
 }, [user])
 
+useEffect(() => {
+  const loadUser = async () => {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession()
+
+    if (!session) {
+      console.error("No session found")
+      return
+    }
+
+    setUser(session.user)
+  }
+
+  loadUser()
+}, [])
 
 useEffect(() => {
   if (!user) return
 
   const fetchMeals = async () => {
+    console.log("Fetching meals for:", user.id, selectedDate)
+
     const { data, error } = await supabase
       .from("meals")
       .select("*")
       .eq("user_id", user.id)
       .eq("date", selectedDate)
-      .order("created_at", { ascending: false })
 
     if (error) {
       console.error("Fetch error:", error)
       return
     }
 
-    // 🔥 MAP DB → MealEntry shape
-    const mappedMeals: MealEntry[] =
-      data?.map((m) => ({
-        id: m.id,
-        name: m.name,
-        calories: m.calories || 0,
-        protein: m.protein || 0,
-        carbs: m.carbs || 0,
-        fat: m.fat || 0,
-        fiber: m.fiber || 0,
-        detectedFood: m.detected_food || undefined,
-        imageUrl: m.image_url || undefined,
-        time: m.time,
-      })) || []
+    console.log("Meals fetched:", data)
 
-    setMeals(mappedMeals)
+    setMeals(data || [])
   }
 
   fetchMeals()
 }, [selectedDate, user])
-
-
 
   // Save meals to localStorage
   useEffect(() => {
@@ -442,33 +454,53 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* 💧 Water Intake */}
-          <Card className="p-6 border border-border/30">
-            <h2 className="text-xl font-bold mb-4">Water Intake</h2>
+           {/* 💧 Water Intake Tracker */}
+<Card className="p-6 bg-gradient-to-br from-cyan-50 to-blue-50 border border-cyan-200">
 
-            <div className="flex gap-3 mb-4">
-              <Button onClick={() => addWater(250)}>+1 Glass</Button>
-              <Button onClick={() => addWater(500)}>+500 ml</Button>
-              <Button onClick={() => addWater(1000)}>+1L</Button>
-            </div>
+  <div className="flex items-center justify-between mb-4">
+    <h2 className="text-xl font-bold flex items-center gap-2">
+      💧 Water Intake
+    </h2>
 
-            {/* Progress */}
-            <div>
-              <p className="text-sm font-semibold mb-2">
-                {waterMl} / {waterGoal} ml
-              </p>
+    <p className="text-sm text-muted-foreground">
+      {waterMl} / {waterGoal} ml
+    </p>
+  </div>
 
-              <div className="w-full bg-muted h-2 rounded-full">
-                <div
-                  className="bg-blue-500 h-2 rounded-full transition-all"
-                  style={{
-                    width: `${Math.min(100, (waterMl / waterGoal) * 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-          </Card>
+  {/* Bottle Container */}
+  <div className="relative w-24 h-56 mx-auto border-4 border-cyan-300 rounded-3xl overflow-hidden bg-white">
 
+    {/* Water Fill */}
+    <div
+      className="absolute bottom-0 left-0 w-full bg-cyan-400 transition-all duration-700"
+      style={{
+        height: `${Math.min(
+          100,
+          (waterMl / waterGoal) * 100
+        )}%`,
+      }}
+    />
+
+  </div>
+
+  {/* % Text */}
+  <p className="text-center mt-3 font-semibold text-cyan-700">
+    {Math.round((waterMl / waterGoal) * 100)}% Hydrated
+  </p>
+
+  {/* Add Buttons */}
+  <div className="flex justify-center gap-3 mt-4">
+    {[250, 500, 750].map((ml) => (
+      <Button
+        key={ml}
+        onClick={() => addWater(ml)}
+        className="bg-cyan-500 hover:bg-cyan-600"
+      >
+        +{ml} ml
+      </Button>
+    ))}
+  </div>
+</Card>
 
           {/* Meals Logged Today */}
           <div>
