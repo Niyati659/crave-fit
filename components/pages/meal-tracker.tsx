@@ -15,9 +15,27 @@ import {
 import { MealEntryForm } from '@/components/meal-entry-form'
 import { NutritionProgressBar } from '@/components/nutrition-progress-bar'
 import { MealSuggestions } from '@/components/meal-suggestions'
-import { mockProfile } from '@/lib/mock-profile'
 import { calcCalories } from '@/lib/calc-calories'
-import { fetchNutrition } from '@/lib/nutrition-api'
+import { supabase } from "@/lib/supabase"
+import { updateDailyLogs } from "@/lib/update-daily-logs"
+import { calcMacrosFromWeight } from "@/lib/calc-macros-weight"
+import { updateWaterLogs } from "@/lib/update-water-logs"
+import { calcWaterGoal } from "@/lib/calc-water-goal"
+
+
+type MealRow = {
+  id: string
+  name: string
+  calories: number
+  protein: number
+  carbs: number
+  fat: number
+  fiber: number
+  detected_food?: string
+  image_url?: string
+  time: string
+  date: string
+}
 
 interface MealTrackerProps {
   onBack: () => void
@@ -27,16 +45,107 @@ export function MealTracker({ onBack }: MealTrackerProps) {
   const [meals, setMeals] = useState<MealEntry[]>([])
   const [showAddMeal, setShowAddMeal] = useState(false)
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0])
+  const [user, setUser] = useState<any>(null)
+  const [profile, setProfile] = useState<any>(null)
+  const [waterMl, setWaterMl] = useState(0)
 
-  // Load meals from localStorage
-  useEffect(() => {
-    const stored = localStorage.getItem(`meals_${selectedDate}`)
-    if (stored) {
-      setMeals(JSON.parse(stored))
+
+  const addWater = async (ml: number) => {
+  if (!user) return
+
+  await updateWaterLogs(user.id, selectedDate, ml)
+
+  setWaterMl((prev) => prev + ml)
+}
+useEffect(() => {
+  if (!user) return
+
+  const fetchWater = async () => {
+    const { data } = await supabase
+      .from("water_logs")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("date", selectedDate)
+      .single()
+
+    if (data) {
+      setWaterMl(data.ml)
     } else {
-      setMeals([])
+      setWaterMl(0)
     }
-  }, [selectedDate])
+  }
+
+  fetchWater()
+}, [user, selectedDate])
+
+  useEffect(() => {
+  const getUser = async () => {
+    const { data } = await supabase.auth.getUser()
+    setUser(data.user)
+  }
+
+  getUser()
+}, [])
+useEffect(() => {
+  if (!user) return
+
+  const fetchProfile = async () => {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .eq("id", user.id)
+      .single()
+
+    if (error) {
+      console.error("Profile fetch error:", error)
+      return
+    }
+
+    setProfile(data)
+  }
+
+  fetchProfile()
+}, [user])
+
+
+useEffect(() => {
+  if (!user) return
+
+  const fetchMeals = async () => {
+    const { data, error } = await supabase
+      .from("meals")
+      .select("*")
+      .eq("user_id", user.id)
+      .eq("date", selectedDate)
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("Fetch error:", error)
+      return
+    }
+
+    // 🔥 MAP DB → MealEntry shape
+    const mappedMeals: MealEntry[] =
+      data?.map((m) => ({
+        id: m.id,
+        name: m.name,
+        calories: m.calories || 0,
+        protein: m.protein || 0,
+        carbs: m.carbs || 0,
+        fat: m.fat || 0,
+        fiber: m.fiber || 0,
+        detectedFood: m.detected_food || undefined,
+        imageUrl: m.image_url || undefined,
+        time: m.time,
+      })) || []
+
+    setMeals(mappedMeals)
+  }
+
+  fetchMeals()
+}, [selectedDate, user])
+
+
 
   // Save meals to localStorage
   useEffect(() => {
@@ -47,14 +156,33 @@ export function MealTracker({ onBack }: MealTrackerProps) {
 
   const progress = calculateProgress(meals)
 
-  // 🔥 Calculate calorie goal from profile
-  const calorieGoal = calcCalories(mockProfile)
+  const calorieGoal = profile
+  ? calcCalories(profile)
+  : DEFAULT_DAILY_GOALS.calories
 
-  // Override only calories (macros stay same)
-  const dynamicGoals = {
-    ...DEFAULT_DAILY_GOALS,
-    calories: calorieGoal,
-  }
+
+  const waterGoal = profile
+    ? calcWaterGoal(profile.weight)
+    : 2000
+
+
+
+  const macroGoals = profile
+  ? calcMacrosFromWeight({
+      calories: calorieGoal,
+      weight: profile.weight,
+      goal: profile.goal,
+    })
+  : DEFAULT_DAILY_GOALS
+
+  
+  const dynamicGoals:DailyProgress["goals"] = {
+  calories: calorieGoal,
+  protein: macroGoals.protein,
+  carbs: macroGoals.carbs,
+  fat: macroGoals.fat,
+  fiber: 25,
+}
 
   const dailyProgress: DailyProgress = {
     date: selectedDate,
@@ -63,29 +191,68 @@ export function MealTracker({ onBack }: MealTrackerProps) {
     ...progress,
   }
 
-  /*
-  🔗 FUTURE SUPABASE INTEGRATION
-
-  Replace mockProfile with:
-
-  const { data } = await supabase
-    .from("users")
-    .select("*")
-    .eq("id", userId)
-    .single()
-  */
 
 
   const suggestedMeals = getSuggestedMeals(dailyProgress)
+  const handleAddMeal = async (meal: MealEntry) => {
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const handleAddMeal = (meal: MealEntry) => {
-    setMeals([...meals, { ...meal, id: Date.now().toString() }])
-    setShowAddMeal(false)
+  const { data, error } = await supabase
+    .from("meals")
+    .insert([
+      {
+        user_id: user?.id,
+        name: meal.name,
+        detected_food: meal.detectedFood || null,
+        calories: meal.calories,
+        protein: meal.protein,
+        carbs: meal.carbs,
+        fat: meal.fat,
+        fiber: meal.fiber,
+        image_url: meal.imageUrl || null,
+        time: meal.time,
+        date: selectedDate,
+      },
+    ])
+    .select()
+
+  if (error) {
+    console.error("Insert error:", error)
+    return
   }
 
-  const handleDeleteMeal = (id: string) => {
-    setMeals(meals.filter((m) => m.id !== id))
+  const insertedMeals = data as MealRow[] | null
+
+  if (insertedMeals && insertedMeals.length > 0) {
+    setMeals([...meals, insertedMeals[0]])
   }
+
+  setShowAddMeal(false)
+  if (user){
+    await updateDailyLogs(user.id, selectedDate)
+  }
+
+}
+
+
+  const handleDeleteMeal = async (id: string) => {
+  const { error } = await supabase
+    .from("meals")
+    .delete()
+    .eq("id", id)
+
+  if (error) {
+    console.error("Delete error:", error)
+    return
+  }
+
+  setMeals(meals.filter((m) => m.id !== id))
+
+  await updateDailyLogs(user.id, selectedDate)
+
+}
 
   const handlePreviousDay = () => {
     const date = new Date(selectedDate)
@@ -195,7 +362,7 @@ export function MealTracker({ onBack }: MealTrackerProps) {
                   </svg>
                   <div className="absolute inset-0 flex flex-col items-center justify-center">
                     <p className="text-3xl font-bold text-foreground">
-                      {dailyProgress.totalCalories}
+                      {Math.round(dailyProgress.totalCalories)}
                     </p>
                     <p className="text-xs text-muted-foreground">
                       / {dailyProgress.goals.calories}
@@ -204,10 +371,11 @@ export function MealTracker({ onBack }: MealTrackerProps) {
                 </div>
                 <p className="text-center text-sm font-semibold text-foreground">
                   {dailyProgress.goals.calories - dailyProgress.totalCalories > 0
-                    ? `${dailyProgress.goals.calories - dailyProgress.totalCalories} left`
+                    ? `${Math.round(dailyProgress.goals.calories - dailyProgress.totalCalories)} left`
                     : 'Goal reached!'}
                 </p>
               </div>
+              
 
               {/* Macros Summary */}
               <div className="space-y-4">
@@ -273,6 +441,34 @@ export function MealTracker({ onBack }: MealTrackerProps) {
               </div>
             </div>
           </div>
+
+          {/* 💧 Water Intake */}
+          <Card className="p-6 border border-border/30">
+            <h2 className="text-xl font-bold mb-4">Water Intake</h2>
+
+            <div className="flex gap-3 mb-4">
+              <Button onClick={() => addWater(250)}>+1 Glass</Button>
+              <Button onClick={() => addWater(500)}>+500 ml</Button>
+              <Button onClick={() => addWater(1000)}>+1L</Button>
+            </div>
+
+            {/* Progress */}
+            <div>
+              <p className="text-sm font-semibold mb-2">
+                {waterMl} / {waterGoal} ml
+              </p>
+
+              <div className="w-full bg-muted h-2 rounded-full">
+                <div
+                  className="bg-blue-500 h-2 rounded-full transition-all"
+                  style={{
+                    width: `${Math.min(100, (waterMl / waterGoal) * 100)}%`,
+                  }}
+                />
+              </div>
+            </div>
+          </Card>
+
 
           {/* Meals Logged Today */}
           <div>
@@ -364,3 +560,4 @@ export function MealTracker({ onBack }: MealTrackerProps) {
     </div>
   )
 }
+
