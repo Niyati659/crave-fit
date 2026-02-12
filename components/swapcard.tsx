@@ -33,16 +33,16 @@ export function SwapCard({ originalFood }: { originalFood: Food }) {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h4 className="font-semibold text-green-900">{swap.name}</h4>
+            <h4 className="font-semibold text-green-900">{swap.recipe_name}</h4>
             <p className="text-sm text-green-700">Save {caloriesSaved} kcal</p>
           </div>
 
-          {expanded ? (
-            <ChevronUp className="w-5 h-5 text-green-700" />
-          ) : (
-            <ChevronDown className="w-5 h-5 text-green-700" />
-          )}
-        </div>
+                    {expanded ? (
+                        <ChevronUp className="w-5 h-5 text-green-700" />
+                    ) : (
+                        <ChevronDown className="w-5 h-5 text-green-700" />
+                    )}
+                </div>
 
         {/* Collapsed Preview Nutrition */}
         <div className="grid grid-cols-4 gap-4 text-center mt-4">
@@ -55,7 +55,7 @@ export function SwapCard({ originalFood }: { originalFood: Food }) {
         {/* Expanded Section */}
         {expanded && (
           <div className="mt-6 space-y-5 border-t border-green-200 pt-5">
-            {/* Ingredients */}
+            {/* Ingredients
             {swap.ingredients && (
               <div className="space-y-2">
                 <h5 className="font-semibold text-green-900">Ingredients</h5>
@@ -65,7 +65,7 @@ export function SwapCard({ originalFood }: { originalFood: Food }) {
                   ))}
                 </ul>
               </div>
-            )}
+            )} */}
 
             {/* Instructions */}
             {swap.instructions && (
@@ -79,15 +79,15 @@ export function SwapCard({ originalFood }: { originalFood: Food }) {
               </div>
             )}
 
-            {/* Optional CTA */}
-            <div className="pt-3">
-              <button className="text-sm font-semibold text-green-900 underline">
-                I’ll choose this instead
-              </button>
+                        {/* Optional CTA */}
+                        <div className="pt-3">
+                            <button className="text-sm font-semibold text-green-900 underline">
+                                I’ll choose this instead
+                            </button>
+                        </div>
+                    </div>
+                )}
             </div>
           </div>
         )}
-      </div>
-    </div>
-  );
-}
+        

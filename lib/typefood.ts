@@ -13,8 +13,6 @@ export interface Food {
   healthierAlternative?: string;
   description?: string;
   instructions?: string[];
-  healthierRecipe?: {
-    Food: Food;
-  };
+  healthierRecipe?: Food
 }
 

@@ -2,7 +2,7 @@ export async function detectFoodFromImage(file: File) {
   const formData = new FormData()
   formData.append("file", file)
 
-  const res = await fetch("/api/detect-food", {
+  const res = await fetch("http://localhost:8000/predict", {
     method: "POST",
     body: formData,
   })
