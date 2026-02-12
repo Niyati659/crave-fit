@@ -22,6 +22,14 @@ import { calcMacrosFromWeight } from "@/lib/calc-macros-weight"
 import { updateWaterLogs } from "@/lib/update-water-logs"
 import { calcWaterGoal } from "@/lib/calc-water-goal"
 import { calculateExerciseTime } from "@/lib/calc-burn"
+import { fetchNutritionRecipes }
+  from "@/lib/fetchNutrition"
+
+import { aggregateNutrition }
+  from "@/lib/aggregateNutrition"
+
+import { getSmartSuggestions }
+  from "@/lib/smartSuggestions"
 
 
 type MealRow = {
@@ -50,6 +58,9 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
   const [user, setUser] = useState<any>(null)
   const [profile, setProfile] = useState<any>(null)
   const [waterMl, setWaterMl] = useState(0)
+  const [loadingRecipes, setLoadingRecipes] = useState(true)
+  const [recipes, setRecipes] = useState<any[]>([])
+
 
 
   const addWater = async (ml: number) => {
@@ -97,6 +108,23 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
 
     fetchWater()
   }, [user, selectedDate])
+
+  useEffect(() => {
+  async function loadRecipes() {
+    const raw = await fetchNutritionRecipes()
+
+    console.log("RAW API DATA:", raw)   // 👈 ADD
+
+    const aggregated = aggregateNutrition(raw)
+
+    console.log("AGGREGATED:", aggregated) // 👈 ADD
+
+    setRecipes(aggregated)
+    setLoadingRecipes(false)
+  }
+
+  loadRecipes()
+}, [])
 
   useEffect(() => {
     if (!user) return
@@ -204,8 +232,64 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
     goals: dynamicGoals,
     ...progress,
   }
+  const remaining = {
+    protein:
+      dynamicGoals.protein -
+      progress.totalProtein,
+
+    carbs:
+      dynamicGoals.carbs -
+      progress.totalCarbs,
+
+    fats:
+      dynamicGoals.fat -
+      progress.totalFat,
+
+    fiber:
+      dynamicGoals.fiber -
+      progress.totalFiber,
+
+    calories:
+      dynamicGoals.calories -
+      progress.totalCalories,
+  }
 
 
+
+  const proteinSuggestions =
+    getSmartSuggestions(
+      recipes,
+      "protein",
+      remaining
+    )
+
+  const carbsSuggestions =
+    getSmartSuggestions(
+      recipes,
+      "carbs",
+      remaining
+    )
+
+  const fatsSuggestions =
+    getSmartSuggestions(
+      recipes,
+      "fats",
+      remaining
+    )
+
+  const fiberSuggestions =
+    getSmartSuggestions(
+      recipes,
+      "fiber",
+      remaining
+    )
+
+  const quickSuggestions =
+    getSmartSuggestions(
+      recipes,
+      "quick",
+      remaining
+    )
 
   const suggestedMeals = getSuggestedMeals(dailyProgress)
   const handleAddMeal = async (meal: Partial<MealEntry>) => {
@@ -683,6 +767,7 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
             {showAddMeal && (
               <Card className="mb-6 p-6 border-2 border-primary/20">
                 <MealEntryForm
+                  currentProgress={dailyProgress}
                   onSave={handleAddMeal}
                   onCancel={() => setShowAddMeal(false)}
                 />
@@ -749,9 +834,148 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
               </div>
             )}
           </div>
+            {/* Smart Suggestions */}
 
-          {/* Smart Suggestions */}
-          <MealSuggestions suggestions={suggestedMeals} onSelectMeal={handleAddMeal} />
+          <Card className="p-6 border border-border/30 shadow-sm">
+            <h2 className="text-2xl font-bold mb-6">
+              Smart Suggestions
+            </h2>
+
+            {loadingRecipes ? (
+              <p className="text-muted-foreground">
+                Loading smart suggestions...
+              </p>
+            ) : (
+              <>
+                {/* 🥩 Protein */}
+                {remaining.protein > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-3">
+                      Protein Boost
+                    </h3>
+
+                    {proteinSuggestions.slice(0,3).map(r => (
+                      <Card
+                        key={r.id}
+                        className="p-3 flex justify-between items-center mb-2"
+                      >
+                        <div>
+                          <p className="font-medium">
+                            {r.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {r.protein.toFixed(1)}g protein
+                          </p>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            handleAddMeal({
+                              name: r.title,
+                              calories: r.calories,
+                              protein: r.protein,
+                              carbs: r.carbs,
+                              fat: r.fats,
+                              fiber: r.fiber,
+                              time: "Now",
+                            })
+                          }
+                        >
+                          Add
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* 🍞 Carbs */}
+                {remaining.carbs > 0 && (
+                  <div className="mb-6">
+                    <h3 className="font-semibold mb-3">
+                      Carbs Boost
+                    </h3>
+
+                    {carbsSuggestions.slice(0,3).map(r => (
+                      <Card
+                        key={r.id}
+                        className="p-3 flex justify-between items-center mb-2"
+                      >
+                        <div>
+                          <p className="font-medium">
+                            {r.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {r.carbs.toFixed(1)}g carbs
+                          </p>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            handleAddMeal({
+                              name: r.title,
+                              calories: r.calories,
+                              protein: r.protein,
+                              carbs: r.carbs,
+                              fat: r.fats,
+                              fiber: r.fiber,
+                              time: "Now",
+                            })
+                          }
+                        >
+                          Add
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+
+                {/* ⚡ Quick Calories */}
+                {remaining.calories > 0 && (
+                  <div>
+                    <h3 className="font-semibold mb-3">
+                      Quick Fill
+                    </h3>
+
+                    {quickSuggestions.slice(0,3).map(r => (
+                      <Card
+                        key={r.id}
+                        className="p-3 flex justify-between items-center mb-2"
+                      >
+                        <div>
+                          <p className="font-medium">
+                            {r.title}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {r.calories.toFixed(0)} kcal
+                          </p>
+                        </div>
+
+                        <Button
+                          size="sm"
+                          onClick={() =>
+                            handleAddMeal({
+                              name: r.title,
+                              calories: r.calories,
+                              protein: r.protein,
+                              carbs: r.carbs,
+                              fat: r.fats,
+                              fiber: r.fiber,
+                              time: "Now",
+                            })
+                          }
+                        >
+                          Add
+                        </Button>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </>
+            )}
+          </Card>
+
         </div>
       </div>
     </div>
