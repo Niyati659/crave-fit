@@ -323,11 +323,16 @@ export function getSuggestedMeals(currentProgress: DailyProgress): Record<string
   if (remaining.fiber > 5) {
     suggestions.fiber = MEAL_SUGGESTIONS.fiber
   }
+// Always suggest quick options
+  const topMeals = getTopMeals(currentProgress.meals, 4)
 
-  // Always suggest quick options
-  suggestions.quick = MEAL_SUGGESTIONS.quick
+  suggestions.quick =
+    topMeals.length > 0
+      ? topMeals
+      : MEAL_SUGGESTIONS.quick
 
   return suggestions
+
 }
 
 export function calculateProgress(meals: MealEntry[]): Omit<DailyProgress, 'date' | 'goals' | 'meals'> {
@@ -343,4 +348,34 @@ export function calculateProgress(meals: MealEntry[]): Omit<DailyProgress, 'date
 export function getProgressPercentage(current: number, goal: number): number {
   if (goal === 0) return 0
   return Math.min(100, Math.round((current / goal) * 100))
+}
+// 🔥 NEW — Personalized Quick Meals
+export function getTopMeals(
+  meals: MealEntry[],
+  limit = 4
+): MealEntry[] {
+
+  if (!meals.length) return []
+
+  const freq: Record<string, number> = {}
+
+  meals.forEach((meal) => {
+    const key = meal.detectedFood || meal.name
+
+    if (!freq[key]) freq[key] = 0
+    freq[key]++
+  })
+
+  // Sort by frequency
+  const sorted = Object.entries(freq)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, limit)
+
+  // Return full meal objects
+  return sorted.map(([name]) => {
+    return meals.find(
+      (m) =>
+        (m.detectedFood || m.name) === name
+    )!
+  })
 }

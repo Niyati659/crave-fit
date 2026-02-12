@@ -3,20 +3,26 @@
 import React, { useState } from "react"
 import { Button } from '@/components/ui/button'
 import type { MealEntry } from '@/lib/meal-tracking'
-import { MEAL_SUGGESTIONS } from '@/lib/meal-tracking' // 🔥 ADD
 import { fetchNutrition } from '@/lib/nutrition-api'
 import { detectFoodFromImage } from '@/lib/food-detection'
+import {
+  MEAL_SUGGESTIONS,
+  getSuggestedMeals,
+  DailyProgress
+} from '@/lib/meal-tracking'
+
 
 interface MealEntryFormProps {
+  currentProgress: DailyProgress
   onSave: (meal: Omit<MealEntry, 'id'>) => void
   onCancel: () => void
 }
 
-export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
+export function MealEntryForm({currentProgress, onSave, onCancel }: MealEntryFormProps) {
 
   const [mode, setMode] = useState<
     "manual" | "macro" | "photo" | "quick"
-  >("manual")
+  >("photo")
 
 
   const [photoFile, setPhotoFile] = useState<File | null>(null)
@@ -144,16 +150,50 @@ export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
         .slice(0, 5),
     })
   }
+  const suggestions = getSuggestedMeals(currentProgress)
 
   return (
     <form onSubmit={handleSubmit} className="space-y-5">
 
       {/* 🔥 MODE SWITCHER (NEW) */}
       <div className="grid grid-cols-4 gap-2">
-        <Button type="button" variant={mode === "manual" ? "default" : "outline"} onClick={() => setMode("manual")}>Manual</Button>
-        <Button type="button" variant={mode === "macro" ? "default" : "outline"} onClick={() => setMode("macro")}>Macros</Button>
-        <Button type="button" variant={mode === "photo" ? "default" : "outline"} onClick={() => setMode("photo")}>Photo</Button>
-        <Button type="button" variant={mode === "quick" ? "default" : "outline"} onClick={() => setMode("quick")}>Quick</Button>
+
+        {/* 📸 Photo First */}
+        <Button
+          type="button"
+          variant={mode === "photo" ? "default" : "outline"}
+          onClick={() => setMode("photo")}
+        >
+          Photo
+        </Button>
+
+        {/* 🥗 Manual Second */}
+        <Button
+          type="button"
+          variant={mode === "manual" ? "default" : "outline"}
+          onClick={() => setMode("manual")}
+        >
+          Manual
+        </Button>
+
+        {/* ⚡ Quick Third */}
+        <Button
+          type="button"
+          variant={mode === "quick" ? "default" : "outline"}
+          onClick={() => setMode("quick")}
+        >
+          Quick
+        </Button>
+
+        {/* 🧮 Macros Last */}
+        <Button
+          type="button"
+          variant={mode === "macro" ? "default" : "outline"}
+          onClick={() => setMode("macro")}
+        >
+          Macros
+        </Button>
+
       </div>
 
       {/* 🥗 MANUAL MODE (NEW) */}
@@ -209,21 +249,36 @@ export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
         </div>
       )}
 
+{mode === "quick" && (
+  <div className="grid grid-cols-2 gap-3">
 
-      {/* ⚡ QUICK ADD MODE (NEW) */}
-      {mode === "quick" && (
-        <div className="grid grid-cols-2 gap-3">
-          {MEAL_SUGGESTIONS.quick.map((meal) => (
-            <div
-              key={meal.id}
-              onClick={() => onSave(meal)}
-              className="border rounded-lg p-3 cursor-pointer hover:bg-muted"
-            >
-              {meal.name}
-            </div>
-          ))}
+    {suggestions.quick.length === 0 ? (
+      <p className="text-sm text-muted-foreground">
+        Log meals to see quick suggestions
+      </p>
+    ) : (
+      suggestions.quick.map((meal) => (
+        <div
+          key={meal.id}
+          onClick={() => onSave(meal)}
+          className="
+            border rounded-xl p-4 cursor-pointer
+            hover:bg-muted transition
+          "
+        >
+          <p className="font-semibold">
+            {meal.detectedFood || meal.name}
+          </p>
+
+          <p className="text-xs text-muted-foreground">
+            {meal.calories} kcal • {meal.protein}g protein
+          </p>
         </div>
-      )}
+      ))
+    )}
+
+  </div>
+)}
 
       {/* 🧮 MACRO MODE (YOUR ORIGINAL FORM — UNTOUCHED) */}
       {mode === "macro" && (
