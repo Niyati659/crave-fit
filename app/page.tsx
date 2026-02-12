@@ -34,11 +34,21 @@ export default function Page() {
   const [activeRecipe, setActiveRecipe] = useState<{ name: string, instructions: string[] } | undefined>(undefined)
 
   const fetchProfile = async (userId: string) => {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('profiles')
-      .select('full_name, avatar_url, age, weight, height, goal, allergies')
+      .select('full_name, avatar_url, age, weight, height, goal, allergies, target_weight, goal_timeline')
       .eq('id', userId)
       .single()
+
+    if (error) {
+      console.error('Supabase fetchProfile Error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint
+      })
+      return
+    }
 
     if (data) {
       setUserData({ ...data, id: userId })
@@ -149,7 +159,7 @@ export default function Page() {
       )}
 
       {currentView === 'meal-tracker' && (
-        <MealTracker onBack={handleBackToLanding} />
+        <MealTracker onBack={handleBackToLanding} onNavigate={handleNavigate} />
       )}
 
       {currentView === 'profile' && (

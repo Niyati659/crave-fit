@@ -38,10 +38,10 @@ export async function updateDailyLogs(
 
   // ⭐ Round
   totals.calories = Number(totals.calories.toFixed(1))
-  totals.protein  = Number(totals.protein.toFixed(1))
-  totals.carbs    = Number(totals.carbs.toFixed(1))
-  totals.fat      = Number(totals.fat.toFixed(1))
-  totals.fiber    = Number(totals.fiber.toFixed(1))
+  totals.protein = Number(totals.protein.toFixed(1))
+  totals.carbs = Number(totals.carbs.toFixed(1))
+  totals.fat = Number(totals.fat.toFixed(1))
+  totals.fiber = Number(totals.fiber.toFixed(1))
 
   // 3️⃣ Fetch profile → get calorie goal
   const { data: profile, error: profileError } = await supabase
@@ -55,7 +55,7 @@ export async function updateDailyLogs(
     return
   }
 
-  const calorieGoal = calcCalories(profile)
+  const { goal: calorieGoal } = calcCalories(profile)
 
   // 4️⃣ Upsert logs
   const { error: upsertError } = await supabase
