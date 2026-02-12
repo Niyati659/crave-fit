@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { TrendingUp, TrendingDown, Flame, LogOut, UserCircle2, ChevronRight, Utensils, Lightbulb, Droplet, ArrowRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Flame, LogOut, UserCircle2, ChevronRight, Utensils, Lightbulb, Droplet, ArrowRight, AlertTriangle } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -11,6 +11,7 @@ import { UtensilLoader } from '@/components/ui/utensil-loader'
 import { generateInsights, Insight } from '@/lib/insights'
 import { RotateCw, ShoppingCart, Sparkles, Loader2 } from 'lucide-react'
 import { getRecipesByEnergy, getRecipesByCarbs, Recipe } from '@/lib/recipes'
+import { analyzeCravingPatterns, CravingInsight } from '@/lib/craving-insights'
 
 interface WeeklyProgress {
   day: string
@@ -50,6 +51,8 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
   }>({ type: 'normal', message: '' })
   const [recommendations, setRecommendations] = useState<Recipe[]>([])
   const [isRefreshingRecs, setIsRefreshingRecs] = useState(false)
+  const [cravingInsight, setCravingInsight] = useState<CravingInsight | null>(null)
+  const [showDeficiencyDetails, setShowDeficiencyDetails] = useState(false)
 
   useEffect(() => {
     const { personal, general } = generateInsights(userData, weeklyData, waterData, allMeals)
@@ -169,6 +172,15 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
 
     checkUserAndProfile()
   }, [router])
+
+  /* ⭐ Fetch craving pattern insights */
+  useEffect(() => {
+    const fetchCravingInsights = async () => {
+      const insight = await analyzeCravingPatterns()
+      setCravingInsight(insight)
+    }
+    fetchCravingInsights()
+  }, [])
 
   useEffect(() => {
     if (isLoading || weeklyData.length === 0) return
@@ -370,6 +382,88 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                   </Button>
                 </div>
               </div>
+
+              {/* 🧠 Craving Pattern / Nutrient Deficiency Alert */}
+              {cravingInsight && cravingInsight.pattern !== 'balanced' && cravingInsight.deficiencies.length > 0 && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <Card className={`p-0 overflow-hidden border shadow-sm ${cravingInsight.pattern === 'sweet'
+                      ? 'bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 border-pink-200'
+                      : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 border-indigo-200'
+                    }`}>
+                    {/* Alert Header */}
+                    <div className={`px-6 py-4 flex items-center gap-3 ${cravingInsight.pattern === 'sweet' ? 'bg-pink-100/60' : 'bg-indigo-100/60'
+                      }`}>
+                      <div className={`p-2 rounded-full ${cravingInsight.pattern === 'sweet' ? 'bg-pink-200' : 'bg-indigo-200'
+                        }`}>
+                        <AlertTriangle className={`w-5 h-5 ${cravingInsight.pattern === 'sweet' ? 'text-pink-700' : 'text-indigo-700'
+                          }`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-xs font-black uppercase tracking-widest ${cravingInsight.pattern === 'sweet' ? 'text-pink-600' : 'text-indigo-600'
+                          }`}>Craving Pattern Detected</p>
+                        <p className="text-sm font-medium text-slate-700 mt-0.5">
+                          {cravingInsight.message}
+                        </p>
+                      </div>
+                      <div className={`text-3xl font-black ${cravingInsight.pattern === 'sweet' ? 'text-pink-600' : 'text-indigo-600'
+                        }`}>
+                        {cravingInsight.percentage}%
+                      </div>
+                    </div>
+
+                    {/* Deficiency Cards */}
+                    <div className="p-6 space-y-4">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        Possible Nutrient Gaps & Foods to Replenish
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {cravingInsight.deficiencies.map((def, i) => (
+                          <div
+                            key={i}
+                            className="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] cursor-default"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-2xl">{def.emoji}</span>
+                              <h4 className={`text-sm font-bold ${cravingInsight.pattern === 'sweet' ? 'text-pink-700' : 'text-indigo-700'
+                                }`}>{def.nutrient}</h4>
+                            </div>
+                            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                              {def.description}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {def.foods.map((food, j) => (
+                                <span
+                                  key={j}
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cravingInsight.pattern === 'sweet'
+                                      ? 'bg-pink-100 text-pink-700'
+                                      : 'bg-indigo-100 text-indigo-700'
+                                    }`}
+                                >
+                                  {food}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* CTA */}
+                      <Button
+                        onClick={() => onNavigate('quiz')}
+                        className={`w-full h-12 rounded-xl font-bold text-sm shadow-lg transition-all ${cravingInsight.pattern === 'sweet'
+                            ? 'bg-pink-600 hover:bg-pink-700 text-white shadow-pink-200'
+                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                          }`}
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Find Foods to Replenish These Nutrients
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+              )}
 
               {/* Top Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">

@@ -168,3 +168,134 @@ export async function getTasteThreshold(value: string) {
     return null
   }
 }
+
+/* -------------------------------------------------- */
+/* 🍬🧂 SEARCH BY INGREDIENTS + CATEGORIES + TITLE  */
+/* -------------------------------------------------- */
+
+interface IngredientCategorySearchParams {
+  includeIngredients?: string[]
+  excludeIngredients?: string[]
+  includeCategories?: string[]
+  excludeCategories?: string[]
+  title?: string
+  page?: number
+  limit?: number
+}
+
+export async function searchRecipesByIngredientCategoriesTitle(
+  params: IngredientCategorySearchParams
+) {
+  try {
+    const {
+      includeIngredients = [],
+      excludeIngredients = [],
+      includeCategories = [],
+      excludeCategories = [],
+      title = '',
+      page = 1,
+      limit = 10,
+    } = params
+
+    const queryParams = new URLSearchParams()
+    if (includeIngredients.length)
+      queryParams.set('includeIngredients', includeIngredients.join(', '))
+    if (excludeIngredients.length)
+      queryParams.set('excludeIngredients', excludeIngredients.join(', '))
+    if (includeCategories.length)
+      queryParams.set('includeCategories', includeCategories.join(', '))
+    if (excludeCategories.length)
+      queryParams.set('excludeCategories', excludeCategories.join(', '))
+    if (title) queryParams.set('title', title)
+    queryParams.set('page', String(page))
+    queryParams.set('limit', String(limit))
+
+    const url = `${BASE_URL}/recipebyingredient/by-ingredients-categories-title?${queryParams.toString()}`
+
+    console.log('SWEET/SAVORY API REQUEST:', url)
+
+    const res = await fetch(url, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${API_KEY}`,
+      },
+    })
+
+    if (!res.ok) {
+      console.error('Sweet/Savory API STATUS:', res.status)
+      const text = await res.text()
+      console.error('Sweet/Savory API ERROR:', text)
+      throw new Error(`Sweet/Savory API failed: ${res.status}`)
+    }
+
+    const data = await res.json()
+
+    console.log('SWEET/SAVORY API RAW:', data)
+
+    const normalizedRecipes = (data?.payload?.data || []).map((r: any) => ({
+      id: r.Recipe_id,
+      title: r.Recipe_title,
+      prepTime: Number(r.total_time) || Number(r.prep_time) || 0,
+      calories: Number(r.Calories) || 0,
+      protein: 0,
+
+      region: r.Region || '',
+
+      isVegan: Number(r.vegan) === 1,
+      isVegetarian:
+        Number(r.ovo_vegetarian) === 1 ||
+        Number(r.lacto_vegetarian) === 1 ||
+        Number(r.ovo_lacto_vegetarian) === 1,
+    }))
+
+    return {
+      recipes: normalizedRecipes,
+      pagination: data?.payload?.pagination || null,
+    }
+  } catch (error) {
+    console.error('Sweet/Savory API ERROR:', error)
+    return {
+      recipes: [],
+      pagination: null,
+    }
+  }
+}
+
+/* -------------------------------------------------- */
+/* 🔬 ENRICH RECIPES WITH MACROS (protein, carbs, fat) */
+/* -------------------------------------------------- */
+
+export async function enrichRecipesWithDetails(recipes: any[], maxEnrich = 10) {
+  const toEnrich = recipes.filter(r => r.protein === 0).slice(0, maxEnrich)
+
+  if (toEnrich.length === 0) return recipes
+
+  console.log(`🔬 ENRICHING ${toEnrich.length} recipes with macro data...`)
+
+  const enrichedMap: Record<string, any> = {}
+
+  for (const recipe of toEnrich) {
+    try {
+      const details = await getRecipeDetails(recipe.id)
+      if (details.recipe) {
+        enrichedMap[recipe.id] = {
+          protein: Number(details.recipe['Protein (g)']) || 0,
+          carbs: Number(details.recipe['Carbohydrate, by difference (g)']) || 0,
+          fat: Number(details.recipe['Total lipid (fat) (g)']) || 0,
+          calories: Number(details.recipe['Energy (kcal)']) || recipe.calories,
+        }
+      }
+      await new Promise(r => setTimeout(r, 200))
+    } catch (err) {
+      console.error(`Enrich failed for ${recipe.id}:`, err)
+    }
+  }
+
+  return recipes.map(recipe => {
+    const macros = enrichedMap[recipe.id]
+    if (macros) {
+      return { ...recipe, ...macros }
+    }
+    return recipe
+  })
+}

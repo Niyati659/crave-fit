@@ -8,6 +8,7 @@ import { FoodDetailModal } from "@/components/food-detail-modal";
 import { Search } from "lucide-react";
 import type { Food } from "@/lib/typefood";
 import { UtensilLoader } from "@/components/ui/utensil-loader";
+import { getDishImage } from "@/lib/dish-image-service";
 
 function EmptyState() {
   return (
@@ -70,7 +71,28 @@ export function BrowseScreen({ onBack }: BrowseScreenProps) {
       const response = await fetch(`/api/search?${params.toString()}`);
       const data = await response.json();
 
-      setResults(data.success ? data.data : []);
+      const foods: Food[] = data.success ? data.data : [];
+      setResults(foods);
+
+      // 🖼 Resolve images in parallel after results render
+      if (foods.length > 0) {
+        Promise.allSettled(
+          foods.map(async (food) => {
+            try {
+              const img = await getDishImage(food.recipe_name);
+              if (img) {
+                setResults((prev) =>
+                  prev.map((f) =>
+                    f.recipe_id === food.recipe_id
+                      ? { ...f, image: img.url }
+                      : f
+                  )
+                );
+              }
+            } catch { /* skip */ }
+          })
+        );
+      }
     } catch (error) {
       console.error("Search failed:", error);
       setResults([]);
@@ -161,11 +183,10 @@ export function BrowseScreen({ onBack }: BrowseScreenProps) {
                   <button
                     key={type}
                     onClick={() => setActiveDiet(type === "All" ? null : type)}
-                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-                      isActive
-                        ? "bg-primary text-white"
-                        : "bg-muted text-muted-foreground hover:bg-muted/70"
-                    }`}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${isActive
+                      ? "bg-primary text-white"
+                      : "bg-muted text-muted-foreground hover:bg-muted/70"
+                      }`}
                   >
                     {type}
                   </button>

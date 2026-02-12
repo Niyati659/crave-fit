@@ -7,13 +7,17 @@ import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { ArrowLeft, Zap, Leaf } from 'lucide-react'
+import Image from 'next/image'
 
 import {
   getRecipesInfo,
   getRecipeInstructions,
   getRecipeDetails,
+  searchRecipesByIngredientCategoriesTitle,
+  enrichRecipesWithDetails,
 } from '@/lib/api'
 
+import { getDishImage } from '@/lib/dish-image-service'
 import { FoodDetailModal } from '@/components/recommendationfood-detail-modal'
 
 interface RecommendationsScreenProps {
@@ -37,6 +41,7 @@ export function RecommendationsScreen({
   const [recipes, setRecipes] = useState<any[]>([])
   const [selectedRecipe, setSelectedRecipe] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recipeImages, setRecipeImages] = useState<Record<string, string>>({})
 
   /* -------------------------------------------------- */
   /* ⭐ Slider → Calories Engine */
@@ -142,10 +147,12 @@ export function RecommendationsScreen({
 
     const sliderLimit = getSliderCaloriesLimit()
 
-    /* ✅ STRICT FILTER */
+    /* ✅ STRICT FILTER (calories=0 means unknown, let them through) */
     let strict = recipes.filter(recipe =>
-      recipe.calories >= quizMeta.calorieRange.min &&
-      recipe.calories <= Math.min(quizMeta.calorieRange.max, sliderLimit) &&
+      (recipe.calories === 0 || (
+        recipe.calories >= quizMeta.calorieRange.min &&
+        recipe.calories <= Math.min(quizMeta.calorieRange.max, sliderLimit)
+      )) &&
       recipe.prepTime <= (quizMeta.maxPrepTime || 999) &&
       dietMatch(recipe)
     )
@@ -156,7 +163,7 @@ export function RecommendationsScreen({
 
     /* ✅ RELAXED FILTER */
     let relaxed = recipes.filter(recipe =>
-      recipe.calories <= sliderLimit + 150 &&
+      (recipe.calories === 0 || recipe.calories <= sliderLimit + 150) &&
       recipe.prepTime <= (quizMeta.maxPrepTime || 999) + 15 &&
       dietMatch(recipe)
     )
@@ -201,7 +208,62 @@ export function RecommendationsScreen({
         console.log("USING CACHE 😌")
       }
 
-      const filtered = getRelaxedRecipes(RECIPES_CACHE)
+      /* -------------------------------------------------- */
+      /* 🍬🧂 SWEET / SAVORY TARGETED API                  */
+      /* -------------------------------------------------- */
+
+      const SWEET_INGREDIENTS = ['cinnamon', 'purpose flour', 'milk', 'vanilla']
+      const SAVORY_INGREDIENTS = ['onion', 'soy sauce', 'garlic', 'garlic clove']
+      const SWEET_CATEGORIES = ['Bakery', 'Additive-Yeast', 'Beverage', 'Beverage Caffeinated', 'Berry', 'Additive-Sugar']
+
+      const hasTasteBias = quizMeta?.sweetBias || quizMeta?.savoryBias
+      let targetedRecipes: any[] = []
+
+      if (quizMeta?.sweetBias) {
+        console.log('🍬 SWEET BIAS — fetching targeted recipes')
+        for (let pg = 1; pg <= 3; pg++) {
+          const sweetData = await searchRecipesByIngredientCategoriesTitle({
+            includeIngredients: SWEET_INGREDIENTS,
+            excludeIngredients: SAVORY_INGREDIENTS,
+            includeCategories: SWEET_CATEGORIES,
+            excludeCategories: [],
+            page: pg,
+            limit: 50,
+          })
+          targetedRecipes = [...targetedRecipes, ...(sweetData.recipes || [])]
+          await new Promise(r => setTimeout(r, 300))
+        }
+      } else if (quizMeta?.savoryBias) {
+        console.log('🧂 SAVORY BIAS — fetching targeted recipes')
+        for (let pg = 1; pg <= 3; pg++) {
+          const savoryData = await searchRecipesByIngredientCategoriesTitle({
+            includeIngredients: SAVORY_INGREDIENTS,
+            excludeIngredients: SWEET_INGREDIENTS,
+            excludeCategories: SWEET_CATEGORIES,
+            includeCategories: [],
+            page: pg,
+            limit: 50,
+          })
+          targetedRecipes = [...targetedRecipes, ...(savoryData.recipes || [])]
+          await new Promise(r => setTimeout(r, 300))
+        }
+      }
+
+      console.log('TARGETED RECIPES COUNT:', targetedRecipes.length)
+
+      /* ⭐ If we have targeted results, use ONLY those.
+         General pool has no ingredient data so random
+         savory/sweet recipes leak through otherwise. */
+      let recipePool = (hasTasteBias && targetedRecipes.length >= 5)
+        ? targetedRecipes
+        : [...targetedRecipes, ...RECIPES_CACHE]
+
+      /* 🔬 Enrich targeted recipes with protein/macros */
+      if (targetedRecipes.length > 0) {
+        recipePool = await enrichRecipesWithDetails(recipePool, 10)
+      }
+
+      const filtered = getRelaxedRecipes(recipePool)
 
 
       const ranked = filtered
@@ -211,7 +273,23 @@ export function RecommendationsScreen({
         }))
         .sort((a, b) => b.score - a.score)
 
-      setRecipes(ranked.slice(0, MIN_RECIPES))
+      const topRecipes = ranked.slice(0, MIN_RECIPES)
+      setRecipes(topRecipes)
+
+      // 🖼 Resolve images in parallel (fire-and-forget so cards render fast)
+      const resolveImages = async () => {
+        const imgMap: Record<string, string> = {}
+        await Promise.allSettled(
+          topRecipes.map(async (r: any) => {
+            try {
+              const img = await getDishImage(r.title)
+              if (img) imgMap[r.id] = img.url
+            } catch { /* skip */ }
+          })
+        )
+        setRecipeImages(prev => ({ ...prev, ...imgMap }))
+      }
+      resolveImages()
 
     } catch (err) {
       console.error("FETCH ERROR:", err)
@@ -260,10 +338,19 @@ export function RecommendationsScreen({
       DETAILS_CACHE[recipe.id] = detailsData
     }
 
+    // Resolve image for the detail modal
+    let recipeImageUrl = recipeImages[recipe.id] || '/placeholder.svg'
+    if (recipeImageUrl === '/placeholder.svg') {
+      try {
+        const img = await getDishImage(recipe.title)
+        if (img) recipeImageUrl = img.url
+      } catch { /* fallback to placeholder */ }
+    }
+
     const fullRecipe = {
       id: recipe.id,
       name: recipe.title,
-      image: '/placeholder.svg',
+      image: recipeImageUrl,
 
       prepTime: recipe.prepTime,
       calories: recipe.calories,
@@ -349,15 +436,30 @@ export function RecommendationsScreen({
                 <div
                   key={`${recipe.id}-${index}`}
                   onClick={() => handleRecipeClick(recipe)}
-                  className="rounded-2xl border p-4 hover:shadow-md cursor-pointer"
+                  className="rounded-2xl border overflow-hidden hover:shadow-lg cursor-pointer transition-shadow duration-300 bg-white"
                 >
-                  <p className="font-bold">
-                    {recipe.title}
-                  </p>
+                  {/* Recipe Image */}
+                  <div className="h-44 w-full relative bg-muted overflow-hidden">
+                    <Image
+                      src={recipeImages[recipe.id] || '/placeholder.svg'}
+                      alt={recipe.title}
+                      fill
+                      className="object-cover hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
 
-                  <p className="text-sm text-muted-foreground">
-                    {recipe.calories} kcal
-                  </p>
+                  <div className="p-4">
+                    <p className="font-bold line-clamp-2">
+                      {recipe.title}
+                    </p>
+
+                    <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                      <span>{recipe.calories} kcal</span>
+                      {recipe.protein > 0 && (
+                        <span className="text-blue-600 font-medium">{recipe.protein}g protein</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
 
