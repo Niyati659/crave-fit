@@ -3,32 +3,17 @@ import { supabase } from "@/lib/supabase"
 export async function updateWaterLogs(
   userId: string,
   date: string,
-  addedMl: number
+  ml: number
 ) {
-  // 1️⃣ Get existing log
-  const { data: existing } = await supabase
+  const { error } = await supabase
     .from("water_logs")
-    .select("*")
-    .eq("user_id", userId)
-    .eq("date", date)
-    .single()
-
-  if (!existing) {
-    // 2️⃣ Create new
-    await supabase.from("water_logs").insert({
+    .insert({
       user_id: userId,
       date,
-      ml: addedMl,
-      glasses: Math.round(addedMl / 250),
+      ml,
     })
-  } else {
-    // 3️⃣ Update existing
-    await supabase
-      .from("water_logs")
-      .update({
-        ml: existing.ml + addedMl,
-        glasses: Math.round((existing.ml + addedMl) / 250),
-      })
-      .eq("id", existing.id)
+
+  if (error) {
+    console.error("Water log insert error:", error)
   }
 }
