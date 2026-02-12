@@ -13,4 +13,9 @@ node_modules/
 .vercel
 venv/
 .venv/
-env/
+
+backend/model/
+*.safetensors
+*.pt
+*.pth
+*.h5
