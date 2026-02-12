@@ -4,22 +4,17 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { Timer, ArrowRight, ArrowLeft, Camera, CheckCircle2, Clock, X, UserCircle2 } from 'lucide-react'
+import { Timer, ArrowRight, ArrowLeft, Camera, CheckCircle2, Clock, X, UserCircle2, Loader2 } from 'lucide-react'
 import Image from 'next/image'
+import { getRecipeByTitle, type Recipe } from '@/lib/recipes'
 
-interface Recipe {
-    name: string
-    instructions: string[]
-    ingredients?: string[]
+interface ChefFriendProps {
+    recipe?: Partial<Recipe>
+    onClose: () => void
 }
 
-// interface ChefFriendProps {
-//     recipe?: Recipe
-//     onClose: () => void
-// }
-
 export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) {
-    const [recipe, setRecipe] = useState<Recipe | undefined>(initialRecipe)
+    const [recipe, setRecipe] = useState<Partial<Recipe> | undefined>(initialRecipe)
     const [currentStep, setCurrentStep] = useState(0)
     const [timeLeft, setTimeLeft] = useState<number | null>(null)
     const [isTimerRunning, setIsTimerRunning] = useState(false)
@@ -46,112 +41,69 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
     const progress = ((currentStep + 1) / totalSteps) * 100
 
     // Magic scaling logic for ingredients
-    const scaleQuantity = (ingredient: string) => {
-        return ingredient.replace(/(\d+(?:\/\d+)?(?:\.\d+)?)/g, (match) => {
-            // Very simple scaling: (serving / base_serving) * quantity
-            // Assume base serving is 2 for all recipes
-            const baseServings = 2
-            const factor = servings / baseServings
+    const renderIngredient = (ing: any) => {
+        if (typeof ing === 'string') {
+            return ing.replace(/(\d+(?:\/\d+)?(?:\.\d+)?)/g, (match) => {
+                const factor = servings
 
-            // Handle fractions (1/2, etc.)
-            if (match.includes('/')) {
-                const [num, den] = match.split('/').map(Number)
-                const val = (num / den) * factor
+                if (match.includes('/')) {
+                    const [num, den] = match.split('/').map(Number)
+                    const val = (num / den) * factor
+                    return val % 1 === 0 ? val.toString() : val.toFixed(1)
+                }
+
+                const val = parseFloat(match) * factor
                 return val % 1 === 0 ? val.toString() : val.toFixed(1)
-            }
+            })
+        }
 
-            const val = parseFloat(match) * factor
-            return val % 1 === 0 ? val.toString() : val.toFixed(1)
-        })
+        // Structured Ingredient scaling
+        const factor = servings
+
+        // Handle numeric strings or fractions in quantity
+        let rawQty = 0
+        const qtyStr = String(ing.quantity || '0')
+        if (qtyStr.includes('/')) {
+            const [num, den] = qtyStr.split('/').map(Number)
+            rawQty = num / den
+        } else {
+            rawQty = parseFloat(qtyStr) || 0
+        }
+
+        const scaledQty = rawQty * factor
+        const formattedQty = scaledQty === 0 ? '' : (scaledQty % 1 === 0 ? scaledQty.toString() : scaledQty.toFixed(1))
+
+        return `${formattedQty} ${ing.unit} ${ing.name}`.trim()
     }
 
-    // Simulated recipe generation
-    const handleGenerateRecipe = () => {
+    const handleGenerateRecipe = async () => {
         if (!customPrompt.trim()) return
         setIsGenerating(true)
 
-        // Simulate "AI" thinking
-        setTimeout(() => {
-            const mockRecipes: Record<string, Recipe> = {
-                'omelette': {
-                    name: 'Magic Fluffy Omelette',
-                    ingredients: [
-                        '2 Eggs',
-                        '1/2 cup Spinach',
-                        '1 tbsp Cheese',
-                        'Salt and pepper'
-                    ],
+        try {
+            const fetchedRecipe = await getRecipeByTitle(customPrompt)
+            if (fetchedRecipe) {
+                setRecipe(fetchedRecipe)
+                setCurrentStep(0)
+            } else {
+                // Fallback to simple custom generation if API fails/no match
+                setRecipe({
+                    name: `Custom ${customPrompt}`,
+                    ingredients: [{ name: 'Selection of fresh ingredients', quantity: '1', unit: 'selection', phrase: 'Selection of fresh ingredients' }],
                     instructions: [
-                        'Crack 2 eggs into a bowl and whisk vigorously.',
-                        'Heat a pan over medium heat with a little butter.',
-                        'Pour in the eggs and let them set for 2 minutes.',
-                        'Add spinach and cheese, then fold and serve!'
+                        `Start by prepping your ingredients for ${customPrompt}.`,
+                        'Heat your cooking surface to the desired temperature.',
+                        'Combine and cook until gold and delicious!',
+                        'Enjoy your custom chef creation!'
                     ]
-                },
-                'pizza': {
-                    name: 'Healthy Ghost Pizza',
-                    ingredients: [
-                        '1 Whole wheat dough',
-                        '1/2 cup Tomato sauce',
-                        '1 cup Mozzarella',
-                        'Fresh basil'
-                    ],
-                    instructions: [
-                        'Preheat your oven to 450°F.',
-                        'Roll out the dough on a floured surface.',
-                        'Spread sauce and sprinkle cheese evenly.',
-                        'Bake for 10 minutes until golden and bubbly.'
-                    ]
-                },
-                'salad': {
-                    name: 'Rainbow Power Salad',
-                    ingredients: [
-                        '2 cups Mixed greens',
-                        '1/2 cup Chickpeas',
-                        '1/4 cup Quinoa',
-                        '2 tbsp Lemon dressing'
-                    ],
-                    instructions: [
-                        'Wash and dry your mixed greens thoroughly.',
-                        'In a large bowl, toss greens with chickpeas and quinoa.',
-                        'Drizzle lemon dressing over the top.',
-                        'Season with black pepper and enjoy fresh!'
-                    ]
-                },
-                'smoothie': {
-                    name: 'Green Monster Smoothie',
-                    ingredients: [
-                        '1 Banana',
-                        '1 cup Spinach',
-                        '1/2 cup Almond milk',
-                        '1 tbsp Chia seeds'
-                    ],
-                    instructions: [
-                        'Add banana, spinach, and almond milk to a blender.',
-                        'Blend on high until completely smooth.',
-                        'Pour into a glass and stir in the chia seeds.',
-                        'Drink immediately for maximum energy!'
-                    ]
-                }
+                })
+                setCurrentStep(0)
             }
-
-            const prompt = customPrompt.toLowerCase()
-            const foundKey = Object.keys(mockRecipes).find(key => prompt.includes(key))
-            const result = foundKey ? mockRecipes[foundKey] : {
-                name: `Custom ${customPrompt}`,
-                ingredients: ['Selection of fresh ingredients'],
-                instructions: [
-                    `Start by prepping your ingredients for ${customPrompt}.`,
-                    'Heat your cooking surface to the desired temperature.',
-                    'Combine and cook until gold and delicious!',
-                    'Enjoy your custom chef creation!'
-                ]
-            }
-
-            setRecipe(result)
-            setCurrentStep(0)
+        } catch (error) {
+            console.error('Chef Buddy Generation Error:', error)
+        } finally {
             setIsGenerating(false)
-        }, 1500)
+        }
     }
 
     // Regex to detect time in instructions
@@ -247,14 +199,26 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
 
                         <div className="bg-white/10 border-b-4 border-white/10 flex flex-row items-center justify-between p-8 pt-16">
                             <div className="flex items-center gap-4">
-                                <div className="w-12 h-12 rounded-2xl bg-white/40 border-2 border-white/20 flex items-center justify-center backdrop-blur-md shadow-inner rotate-3">
+                                <div className="w-12 h-12 rounded-2xl bg-white/40 border-2 border-white/20 flex items-center justify-center backdrop-blur-md shadow-inner rotate-1">
                                     <span className="text-2xl" style={{ filter: recipe ? 'drop-shadow(0 0-8px #fb923c) saturate(2)' : 'none' }}>{recipe ? '👻' : '🔍'}</span>
                                 </div>
-                                <div className="-rotate-1">
+                                <div className="rotate-0">
                                     <h2 className="text-2xl font-black text-black drop-shadow-md leading-none">Chef Buddy</h2>
-                                    <p className="text-[10px] font-black text-black/70 uppercase tracking-[0.2em] mt-1 italic">
+                                    <p className="text-[20px] font-black text-black/200 uppercase">
                                         {recipe?.name || 'Healthy Magic'}
                                     </p>
+                                    {recipe && recipe.calories && (
+                                        <div className="flex gap-2 mt-2">
+                                            <div className="px-2 py-0.5 rounded-md bg-orange-500/10 border border-orange-500/20 text-[9px] font-black text-orange-600 uppercase">
+                                                {recipe.calories} kcal
+                                            </div>
+                                            {recipe.protein && (
+                                                <div className="px-2 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20 text-[9px] font-black text-blue-600 uppercase">
+                                                    P: {recipe.protein}g
+                                                </div>
+                                            )}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                             <Button
@@ -290,9 +254,14 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
                                             />
                                             <button
                                                 onClick={handleGenerateRecipe}
-                                                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black text-white rounded-xl hover:scale-110 active:scale-95 transition-all"
+                                                disabled={isGenerating}
+                                                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black text-white rounded-xl hover:scale-110 active:scale-95 transition-all disabled:opacity-50"
                                             >
-                                                <ArrowRight className="w-6 h-6" />
+                                                {isGenerating ? (
+                                                    <Loader2 className="w-6 h-6 animate-spin" />
+                                                ) : (
+                                                    <ArrowRight className="w-6 h-6" />
+                                                )}
                                             </button>
                                         </div>
                                     </div>
@@ -304,7 +273,7 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
                                     </div>
                                     <div className="space-y-6 px-4">
                                         <h1 className="text-4xl font-black text-black leading-none italic uppercase">Masterpiece!</h1>
-                                        <p className="text-lg font-bold text-black/80">
+                                        <p className="text-lg font-bold text-black/80 uppercase">
                                             Your {recipe?.name} is ready for the gram! 📸
                                         </p>
                                         <div className="bg-black/10 p-8 rounded-[2rem] border-4 border-dashed border-black/20 max-w-sm mx-auto">
@@ -361,18 +330,18 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
                                                 Step {currentStep + 1}
                                             </div>
 
-                                            <h2 className="text-2xl font-black text-black leading-[1.2] tracking-tight text-center md:text-left">
+                                            <h2 className="text-2xl font-black text-black leading-[1.2] tracking-tight text-center md:text-left uppercase">
                                                 {steps[currentStep]}
                                             </h2>
 
-                                            {currentStep === 0 && recipe.ingredients && (
+                                            {currentStep === 0 && recipe.ingredients && recipe.ingredients.length > 0 && (
                                                 <div className="bg-black/5 p-4 rounded-[1.5rem] border-2 border-black/10 space-y-2">
                                                     <p className="text-[10px] font-black uppercase tracking-[0.2em] text-black/50 text-center">Ingredients</p>
                                                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1">
                                                         {recipe.ingredients.map((ing, i) => (
                                                             <div key={i} className="flex items-center gap-2 text-[13px] font-black text-black group">
                                                                 <div className="w-1.5 h-1.5 rounded-full bg-black" />
-                                                                {scaleQuantity(ing)}
+                                                                <span className="uppercase">{renderIngredient(ing)}</span>
                                                             </div>
                                                         ))}
                                                     </div>
@@ -448,7 +417,7 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
         }
         @keyframes float {
           0%, 100% { transform: translateY(0) rotate(0); }
-          50% { transform: translateY(-15px) rotate(2deg); }
+          50% { transform: translateY(-15px) rotate(0.5deg); }
         }
         .animate-float {
           animation: float 4s ease-in-out infinite;

@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
+
 import { LandingPage } from '@/components/pages/landing'
 import { QuizFlow } from '@/components/pages/quiz-flow'
 import { RecommendationsScreen } from '@/components/pages/recommendations'
@@ -9,15 +10,23 @@ import { MealTracker } from '@/components/pages/meal-tracker'
 import { Dashboard } from '@/components/pages/dashboard'
 import { Profile } from '@/components/pages/profile'
 import { Header } from '@/components/header'
-import { ChefFriend } from '@/components/chef-friend'
+
 import { supabase } from '@/lib/supabase'
+import { ChefFriend } from '@/components/chef-friend'
+
+// import { authStorage } from '@/lib/auth'
+// ⭐ NEW QUIZ ENGINE
+import { generateCravingProfile } from '@/lib/quiz-engine'
+
 import { BrowseScreen } from '@/components/pages/browse'
+import { type Recipe } from '@/lib/recipes'
 
 type PageView =
   | 'dashboard'
   | 'landing'
   | 'quiz'
   | 'recommendations'
+  | 'meal-tracker'
   | 'browse'
   | 'meal-tracker'
   | 'profile'
@@ -26,12 +35,15 @@ type PageView =
 export default function Page() {
   const router = useRouter()
 
+
+  const [quizMeta, setQuizMeta] = useState<any>(null)
+
   const [currentView, setCurrentView] = useState<PageView>('landing')
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({})
   const [healthPreference, setHealthPreference] = useState(50)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userData, setUserData] = useState<any>(null)
-  const [activeRecipe, setActiveRecipe] = useState<{ name: string, instructions: string[] } | undefined>(undefined)
+  const [activeRecipe, setActiveRecipe] = useState<Partial<Recipe> | undefined>(undefined)
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -101,18 +113,66 @@ export default function Page() {
     setCurrentView(view)
   }
 
-  // Quiz → Recommendations ONLY
-  const handleQuizComplete = (answers: Record<string, string>) => {
+  const handleQuizComplete = (
+    answers: Record<string, string>
+  ) => {
     setQuizAnswers(answers)
+
+    const cravingData =
+      generateCravingProfile(answers)
+
+    const meta = {
+      answers,
+      ...cravingData,
+      timestamp: new Date().toISOString(),
+    }
+
+    setQuizMeta(meta)
+
+    saveQuizHistory(meta)
+
     setCurrentView('recommendations')
+  }
+
+  useEffect(() => {
+    if (!quizAnswers || Object.keys(quizAnswers).length === 0) return
+
+    const updatedMeta = generateCravingProfile(
+      quizAnswers,
+      healthPreference // ⭐ THIS IS MAGIC
+    )
+
+    setQuizMeta((prev: any) => ({
+      ...prev,
+      ...updatedMeta,
+    }))
+  }, [healthPreference])
+
+
+  const handleSkipQuiz = () => {
+    setCurrentView('recommendations')
+    setQuizAnswers({})
   }
 
   const handleBackToLanding = () => {
     setCurrentView('landing')
   }
 
+  const saveQuizHistory = (entry: any) => {
+    const history =
+      JSON.parse(localStorage.getItem('quizHistory') || '[]')
+
+    history.push(entry)
+
+    localStorage.setItem(
+      'quizHistory',
+      JSON.stringify(history)
+    )
+  }
+
   return (
     <main className="min-h-screen bg-background">
+
       <Header
         currentView={currentView}
         onNavigate={handleNavigate}
@@ -128,7 +188,9 @@ export default function Page() {
         <LandingPage
           onStartQuiz={() => setCurrentView('quiz')}
           onNavigate={handleNavigate}
-          onMealTrackerClick={() => handleNavigate('meal-tracker')}
+          onMealTrackerClick={() =>
+            handleNavigate('meal-tracker')
+          }
         />
       )}
 
@@ -142,12 +204,12 @@ export default function Page() {
 
       {currentView === 'recommendations' && (
         <RecommendationsScreen
-          quizAnswers={quizAnswers}
+          quizMeta={quizMeta}
           healthPreference={healthPreference}
           onHealthPreferenceChange={setHealthPreference}
           onBack={handleBackToLanding}
           onMealTrackerClick={() => handleNavigate('meal-tracker')}
-          onCookWithChef={(recipe: { name: string, instructions: string[] }) => {
+          onCookWithChef={(recipe: Partial<Recipe>) => {
             setActiveRecipe(recipe)
             setCurrentView('chef')
           }}
@@ -180,3 +242,5 @@ export default function Page() {
     </main>
   )
 }
+
+

@@ -7,16 +7,18 @@ import './globals.css'
 const _geist = Geist({ subsets: ['latin'] })
 const _geistMono = Geist_Mono({ subsets: ['latin'] })
 
-export const metadata: Metadata = {
-  title: 'CraveFit - Eat What You Crave, Know What You Eat',
-  description: 'Discover food based on your cravings with health-aware recommendations',
-  generator: 'v0.app',
-  viewport: {
+export const viewport = {
     width: 'device-width',
     initialScale: 1,
     maximumScale: 1,
     userScalable: false,
-  },
+  }
+  
+export const metadata: Metadata = {
+  title: 'CraveFit - Eat What You Crave, Know What You Eat',
+  description: 'Discover food based on your cravings with health-aware recommendations',
+  generator: 'v0.app',
+  
 }
 
 export default function RootLayout({
