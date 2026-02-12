@@ -11,12 +11,11 @@ export const metadata: Metadata = {
   title: 'CraveFit - Eat What You Crave, Know What You Eat',
   description: 'Discover food based on your cravings with health-aware recommendations',
   generator: 'v0.app',
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-  },
+}
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
 }
 
 export default function RootLayout({
@@ -26,7 +25,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body className="font-sans antialiased">{children}</body>
+      <body className={`${_geist.className} antialiased overflow-x-hidden`}>{children}</body>
     </html>
   )
 }
