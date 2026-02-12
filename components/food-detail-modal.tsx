@@ -1,24 +1,28 @@
-'use client'
+"use client";
 
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import type { Food } from '@/lib/mock-foods'
-import { ExternalLink, ArrowRight } from 'lucide-react'
-import { SwapCard } from './swapcard'
-import Image from 'next/image'
-
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import type { Food } from "@/lib/typefood";
+import { ExternalLink, ArrowRight } from "lucide-react";
+import { SwapCard } from "./swapcard";
+import Image from "next/image";
 
 interface FoodDetailModalProps {
-  food: Food | null
-  onClose: () => void
-  matchScore?: number
-  whyMatched?: string
+  food: Food | null;
+  onClose: () => void;
+  matchScore?: number;
+  whyMatched?: string;
 }
 
 function getHealthLabel(score: number) {
-  if (score >= 75) return 'Very Healthy'
-  if (score >= 50) return 'Balanced'
-  return 'Indulgent'
+  if (score >= 75) return "Very Healthy";
+  if (score >= 50) return "Balanced";
+  return "Indulgent";
 }
 
 export function FoodDetailModal({
@@ -27,9 +31,9 @@ export function FoodDetailModal({
   matchScore,
   whyMatched,
 }: FoodDetailModalProps) {
-  if (!food) return null
+  if (!food) return null;
 
-  const zomatoSearchUrl = `https://www.zomato.com/search?q=${encodeURIComponent(food.name)}`
+  const zomatoSearchUrl = `https://www.zomato.com/search?q=${encodeURIComponent(food.name)}`;
 
   return (
     <Dialog open={!!food} onOpenChange={onClose}>
@@ -38,7 +42,7 @@ export function FoodDetailModal({
         {/* Header */}
         <DialogHeader className="space-y-2">
           <DialogTitle className="text-2xl font-bold flex items-center justify-between">
-            {food.name}
+            {food.recipe_name}
             {matchScore !== undefined && (
               <span className="text-sm font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
                 {Math.round(matchScore)}% Match
@@ -48,24 +52,23 @@ export function FoodDetailModal({
         </DialogHeader>
 
         {/* Food Image (Optional) */}
-{food.image && (
-  <div className="relative w-full h-64 rounded-xl overflow-hidden border border-border/40">
-    <Image
-      src={food.image}
-      alt={food.name}
-      fill
-      className="object-cover"
-      sizes="(max-width: 768px) 100vw, 800px"
-    />
-  </div>
-)}
-
+        {food.image && (
+          <div className="relative w-full h-64 rounded-xl overflow-hidden border border-border/40">
+            <Image
+              src={food.image}
+              alt={food.recipe_name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 800px"
+            />
+          </div>
+        )}
 
         {/* Cuisine / Diet Tags */}
         <div className="flex flex-wrap gap-2">
-          {food.category && (
+          {food.region && (
             <span className="px-3 py-1 text-xs font-medium bg-muted rounded-full">
-              {food.category}
+              {food.region}
             </span>
           )}
           {food.dietType && (
@@ -82,9 +85,24 @@ export function FoodDetailModal({
         <div className="grid grid-cols-4 gap-4 text-center border-y border-border/30 py-5">
           <Stat label="Calories" value={food.calories} />
           <Stat label="Protein" value={`${food.protein}g`} />
-          <Stat label="Carbs" value={`${food.carbs ?? '-'}g`} />
-          <Stat label="Fat" value={`${food.fat ?? '-'}g`} />
+          <Stat label="Carbs" value={`${food.carbs ?? "-"}g`} />
+          <Stat label="Fat" value={`${food.fat ?? "-"}g`} />
         </div>
+
+        {/* Instructions */}
+{food.instructions && food.instructions.length > 0 && (
+  <div className="space-y-3">
+    <h3 className="text-lg font-semibold">Instructions</h3>
+    <ol className="space-y-2 list-decimal list-inside text-sm text-foreground">
+      {food.instructions.map((step, index) => (
+        <li key={index} className="leading-relaxed">
+          {step}
+        </li>
+      ))}
+    </ol>
+  </div>
+)}
+
 
         {/* Primary CTA */}
         <Button
@@ -115,17 +133,20 @@ export function FoodDetailModal({
         )}
 
         {/* Swap Section */}
-        {food.healthierRecipe && (
-          <SwapCard originalFood={food} />
-        )}
+        {food.healthierRecipe && <SwapCard originalFood={food} />}
 
         {/* Close Button */}
-        <Button variant="outline" onClick={onClose} size="lg" className="w-full">
+        <Button
+          variant="outline"
+          onClick={onClose}
+          size="lg"
+          className="w-full"
+        >
           Close
         </Button>
       </DialogContent>
     </Dialog>
-  )
+  );
 }
 
 function Stat({ label, value }: { label: string; value: string | number }) {
@@ -136,5 +157,5 @@ function Stat({ label, value }: { label: string; value: string | number }) {
       </p>
       <p className="text-lg font-semibold mt-1">{value}</p>
     </div>
-  )
+  );
 }
