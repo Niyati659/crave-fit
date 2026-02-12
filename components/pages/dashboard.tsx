@@ -3,10 +3,13 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { TrendingUp, TrendingDown, Flame, LogOut, UserCircle2, ChevronRight, Utensils, Lightbulb } from 'lucide-react'
+import { TrendingUp, TrendingDown, Flame, LogOut, UserCircle2, ChevronRight, Utensils, Lightbulb, Droplet, ArrowRight } from 'lucide-react'
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { UtensilLoader } from '@/components/ui/utensil-loader'
+import { generateInsights, Insight } from '@/lib/insights'
+import { RotateCw } from 'lucide-react'
 
 interface WeeklyProgress {
   day: string
@@ -27,30 +30,41 @@ interface DashboardProps {
     height?: number
     goal?: string
     allergies?: string
+    target_weight?: number
   }
 }
-
-const healthFacts = [
-  "💧 Drinking water before meals can help reduce calorie intake by up to 13%",
-  "🥗 Eating protein at breakfast can reduce cravings by 60% throughout the day",
-  "🏃 Just 10 minutes of exercise can boost your metabolism for hours",
-  "😴 Getting 7-9 hours of sleep helps regulate hunger hormones",
-  "🥜 Nuts are packed with healthy fats that keep you full longer",
-  "🍎 Eating fiber-rich foods can help you feel 25% fuller",
-  "🧘 Mindful eating can reduce overeating by up to 30%",
-  "🥤 Sugary drinks can add 500+ calories to your daily intake without filling you up"
-]
 
 export function Dashboard({ onNavigate, userData }: DashboardProps) {
   const router = useRouter()
   const [user, setUser] = useState<any>(null)
   const [weeklyData, setWeeklyData] = useState<WeeklyProgress[]>([])
+  const [waterData, setWaterData] = useState<{ day: string; ml: number }[]>([])
+  const [allMeals, setAllMeals] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [randomFact, setRandomFact] = useState('')
+  const [personalTip, setPersonalTip] = useState<Insight | null>(null)
+  const [generalTip, setGeneralTip] = useState<Insight | null>(null)
 
   useEffect(() => {
-    setRandomFact(healthFacts[Math.floor(Math.random() * healthFacts.length)])
-  }, [])
+    const { personal, general } = generateInsights(userData, weeklyData, waterData, allMeals)
+    setPersonalTip(personal[Math.floor(Math.random() * personal.length)] || null)
+    setGeneralTip(general[Math.floor(Math.random() * general.length)])
+  }, [userData, weeklyData, waterData, allMeals])
+
+  const refreshPersonal = () => {
+    const { personal } = generateInsights(userData, weeklyData, waterData, allMeals)
+    if (personal.length <= 1) return
+    const currentText = personalTip?.text
+    const others = personal.filter(i => i.text !== currentText)
+    setPersonalTip(others[Math.floor(Math.random() * others.length)] || personal[0])
+  }
+
+  const refreshGeneral = () => {
+    const { general } = generateInsights(userData, weeklyData, waterData, allMeals)
+    if (general.length <= 1) return
+    const currentText = generalTip?.text
+    const others = general.filter(i => i.text !== currentText)
+    setGeneralTip(others[Math.floor(Math.random() * others.length)] || general[0])
+  }
 
   useEffect(() => {
     const checkUserAndProfile = async () => {
@@ -63,39 +77,82 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
 
         setUser(session.user)
 
-        // Fetch weekly progress data
-        const { data: meals } = await supabase
-          .from('meals')
+        // Fetch weekly progress data from daily_logs
+        const { data: logs, error: logsError } = await supabase
+          .from('daily_logs')
           .select('*')
           .eq('user_id', session.user.id)
-          .gte('created_at', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString())
+          .gte('date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+          .order('date', { ascending: true })
 
-        if (meals && meals.length > 0) {
-          const groupedByDay = meals.reduce((acc: any, meal: any) => {
-            const day = new Date(meal.created_at).toLocaleDateString('en-US', { weekday: 'short' })
-            if (!acc[day]) {
-              acc[day] = { calories: 0, protein: 0, carbs: 0, fat: 0, count: 0 }
+        if (logsError) throw logsError
+
+        if (logs) {
+          const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+
+          // Map logs to their weekdays
+          const logsByDay = logs.reduce((acc: any, log: any) => {
+            const date = new Date(log.date)
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+            const dayName = dayNames[date.getUTCDay()]
+            acc[dayName] = {
+              calories: log.calories_consumed || 0,
+              protein: log.protein || 0,
+              carbs: log.carbs || 0,
+              fat: log.fat || 0,
+              goal: log.calories_goal || 2000
             }
-            acc[day].calories += meal.calories || 0
-            acc[day].protein += meal.protein || 0
-            acc[day].carbs += meal.carbs || 0
-            acc[day].fat += meal.fat || 0
-            acc[day].count += 1
             return acc
           }, {})
 
-          const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
           const formattedData = weekDays.map(day => ({
             day,
-            calories: groupedByDay[day]?.calories || 0,
-            protein: groupedByDay[day]?.protein || 0,
-            carbs: groupedByDay[day]?.carbs || 0,
-            fat: groupedByDay[day]?.fat || 0,
-            goal: 2000
+            calories: logsByDay[day]?.calories || 0,
+            protein: logsByDay[day]?.protein || 0,
+            carbs: logsByDay[day]?.carbs || 0,
+            fat: logsByDay[day]?.fat || 0,
+            goal: logsByDay[day]?.goal || 2000
           }))
 
           setWeeklyData(formattedData)
         }
+
+        // Fetch weekly water data
+        const { data: waterLogs, error: waterError } = await supabase
+          .from('water_logs')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .gte('date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+          .order('date', { ascending: true })
+
+        if (waterError) throw waterError
+
+        if (waterLogs) {
+          const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
+          const waterByDay = waterLogs.reduce((acc: any, log: any) => {
+            const date = new Date(log.date)
+            const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+            const dayName = dayNames[date.getUTCDay()]
+            acc[dayName] = (acc[dayName] || 0) + (log.ml || 0)
+            return acc
+          }, {})
+
+          const formattedWater = weekDays.map(day => ({
+            day,
+            ml: waterByDay[day] || 0
+          }))
+          setWaterData(formattedWater)
+        }
+
+        // Fetch all raw meals for behavioral analysis (Last 7 days)
+        const { data: rawMeals, error: mealsError } = await supabase
+          .from('meals')
+          .select('*')
+          .eq('user_id', session.user.id)
+          .gte('date', new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0])
+
+        if (mealsError) throw mealsError
+        setAllMeals(rawMeals || [])
       } catch (error) {
         console.error('Error fetching data:', error)
       } finally {
@@ -111,12 +168,14 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
     router.push('/')
   }
 
+  const loggedDaysCount = weeklyData.filter(d => d.calories > 0).length || 1
   const avgCalories = weeklyData.length > 0
-    ? Math.round(weeklyData.reduce((sum, d) => sum + d.calories, 0) / weeklyData.filter(d => d.calories > 0).length)
+    ? Math.round(weeklyData.reduce((sum, d) => sum + d.calories, 0) / loggedDaysCount)
     : 0
 
+  const loggedProteinDaysCount = weeklyData.filter(d => d.protein > 0).length || 1
   const totalProtein = weeklyData.length > 0
-    ? Math.round(weeklyData.reduce((sum, d) => sum + d.protein, 0) / weeklyData.filter(d => d.protein > 0).length)
+    ? Math.round(weeklyData.reduce((sum, d) => sum + d.protein, 0) / loggedProteinDaysCount)
     : 0
 
   if (isLoading) {
@@ -186,58 +245,79 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                   </div>
                 </div>
               </Card>
-
-              <Card className="p-6 bg-gradient-to-br from-emerald-50 to-emerald-100 border-emerald-200 shadow-sm">
-                <div className="flex items-start gap-4">
-                  <div className="p-3 bg-emerald-500/20 rounded-full">
-                    <Lightbulb className="w-6 h-6 text-emerald-600" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-bold text-emerald-700 uppercase tracking-wider mb-2">Did You Know?</h4>
-                    <p className="text-lg text-foreground">{randomFact}</p>
-                  </div>
-                </div>
-              </Card>
             </div>
           ) : (
-            /* Dashboard with Data */
-            <>
+            <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
+              {/* Daily Insights Section */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {/* Personal Insight */}
+                <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between gap-4 animate-in slide-in-from-left-4 duration-1000">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-emerald-100 rounded-lg">
+                      <UserCircle2 className="w-5 h-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 mb-0.5">Your Progress</p>
+                      <p className="text-sm font-medium text-slate-700">
+                        {personalTip?.text || "Keep tracking to unlock personalized insights!"}
+                      </p>
+                    </div>
+                  </div>
+                  {personalTip && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={refreshPersonal}
+                      className="text-emerald-400 hover:text-emerald-600 hover:bg-emerald-100/50 h-8 w-8 shrink-0"
+                    >
+                      <RotateCw className="w-4 h-4" />
+                    </Button>
+                  )}
+                </div>
+
+                {/* General Pro Tip */}
+                <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4 animate-in slide-in-from-right-4 duration-1000">
+                  <div className="flex items-center gap-4">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Lightbulb className="w-5 h-5 text-blue-600" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] uppercase tracking-wider font-bold text-blue-600 mb-0.5">Pro Tip</p>
+                      <p className="text-sm font-medium text-slate-700">
+                        {generalTip?.text || "Consistency is the secret to a healthy lifestyle!"}
+                      </p>
+                    </div>
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={refreshGeneral}
+                    className="text-blue-400 hover:text-blue-600 hover:bg-blue-100/50 h-8 w-8 shrink-0"
+                  >
+                    <RotateCw className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+
               {/* Top Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                {/* Total Progress */}
+                {/* Current Weight */}
                 <Card className="p-6 bg-white border-border shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
-                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Total Progress</p>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Current Weight</p>
                       <div className="flex items-baseline gap-2">
                         <p className="text-4xl font-bold text-emerald-600">
-                          {userData?.weight ? `${(75 - userData.weight).toFixed(1)}` : '0.0'}
+                          {userData?.weight ? `${userData.weight}` : '—'}
                         </p>
-                        <span className="text-sm text-muted-foreground">lbs lost</span>
+                        <span className="text-sm text-muted-foreground">kg</span>
                       </div>
+                      {userData?.target_weight && (
+                        <p className="text-xs text-muted-foreground mt-2">Goal: {userData.target_weight} kg</p>
+                      )}
                     </div>
                     <div className="p-3 bg-emerald-100 rounded-full">
                       <TrendingDown className="w-6 h-6 text-emerald-600" />
-                    </div>
-                  </div>
-                </Card>
-
-                {/* Goal Progress */}
-                <Card className="p-6 bg-white border-border shadow-sm">
-                  <div>
-                    <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Goal Progress</p>
-                    <div className="space-y-3">
-                      <div className="flex items-center gap-3">
-                        <div className="flex-1 h-2 bg-slate-200 rounded-full overflow-hidden">
-                          <div
-                            className="h-full bg-gradient-to-r from-orange-500 to-orange-400 rounded-full transition-all"
-                            style={{ width: `${Math.min((avgCalories / 2000) * 100, 100)}%` }}
-                          />
-                        </div>
-                      </div>
-                      <p className="text-sm text-foreground">
-                        <span className="font-bold text-orange-600">{Math.round((avgCalories / 2000) * 100)}%</span> towards daily goal
-                      </p>
                     </div>
                   </div>
                 </Card>
@@ -248,7 +328,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Current Streak</p>
                       <div className="flex items-baseline gap-2">
-                        <p className="text-4xl font-bold text-blue-600">{weeklyData.filter(d => d.calories > 0).length}</p>
+                        <p className="text-4xl font-bold text-blue-600">{weeklyData.filter(d => d && d.calories > 0).length}</p>
                         <span className="text-sm text-muted-foreground">days tracked</span>
                       </div>
                     </div>
@@ -257,56 +337,146 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     </div>
                   </div>
                 </Card>
+
+                {/* Avg Daily Water */}
+                <Card className="p-6 bg-white border-border shadow-sm">
+                  <div className="flex items-start justify-between">
+                    <div>
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Avg Hydration</p>
+                      <div className="flex items-baseline gap-2">
+                        <p className="text-4xl font-bold text-sky-500">
+                          {waterData.length > 0
+                            ? Math.round(waterData.reduce((sum, d) => sum + d.ml, 0) / (waterData.filter(d => d.ml > 0).length || 1))
+                            : 0}
+                        </p>
+                        <span className="text-sm text-muted-foreground">ml/day</span>
+                      </div>
+                    </div>
+                    <div className="p-3 bg-sky-100 rounded-full">
+                      <Droplet className="w-6 h-6 text-sky-500" />
+                    </div>
+                  </div>
+                </Card>
               </div>
 
               {/* Charts Section */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {/* Weight Trend Chart */}
-                <Card className="p-6 bg-white border-border shadow-sm">
-                  <h3 className="text-lg font-bold text-foreground mb-6">Weight Trend</h3>
-                  <div className="h-64 flex items-end justify-between gap-2">
-                    {weeklyData.map((day, idx) => {
-                      const weight = userData?.weight ? userData.weight + (idx * 0.1) : 70 - (idx * 0.3)
-                      const maxWeight = 75
-                      const minWeight = 68
-                      const heightPercent = ((weight - minWeight) / (maxWeight - minWeight)) * 100
-
-                      return (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                          <div className="relative w-full h-48">
-                            <div
-                              className="absolute bottom-0 w-2 bg-slate-300 rounded-full mx-auto left-1/2 -translate-x-1/2"
-                              style={{ height: `${Math.max(heightPercent, 10)}%` }}
-                            >
-                              <div className="absolute -top-2 left-1/2 -translate-x-1/2 w-3 h-3 bg-slate-600 rounded-full" />
-                            </div>
-                          </div>
-                          <span className="text-xs text-muted-foreground">{day.day}</span>
-                        </div>
-                      )
-                    })}
+                {/* Water Intake Chart */}
+                <Card className="p-6 bg-white border-border shadow-sm rounded-xl overflow-hidden group">
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <h3 className="text-l font-black text-slate-700 uppercase tracking-tight">Water Intake</h3>
+                      <p className="text-xs text-muted-foreground font-bold">Past 7 Days</p>
+                    </div>
+                    <div className="p-2.5 bg-sky-50 rounded-xl border border-sky-100 text-sky-600 transition-colors">
+                      <Droplet className="w-5 h-5 fill-current" />
+                    </div>
+                  </div>
+                  <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={waterData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis
+                          dataKey="day"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }}
+                          dy={10}
+                        />
+                        <YAxis hide />
+                        <Tooltip
+                          cursor={{ fill: '#f8fafc', radius: 12 }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              return (
+                                <div className="bg-slate-900/95 text-white p-3 rounded-xl shadow-xl border border-white/10 animate-in zoom-in-95">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-1">{payload[0].payload.day}</p>
+                                  <p className="text-lg font-bold">{payload[0].value}<span className="text-xs ml-1 opacity-60">ml</span></p>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar
+                          dataKey="ml"
+                          radius={[12, 12, 12, 12]}
+                          onClick={(data) => {
+                            // Find the date for this day if possible, or just go to tracker
+                            onNavigate('meal-tracker');
+                          }}
+                          className="cursor-pointer"
+                        >
+                          {waterData.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={entry.ml >= 2000 ? '#0ea5e9' : '#bae6fd'}
+                              fillOpacity={0.8}
+                            />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </Card>
 
                 {/* Calories Weekly Chart */}
-                <Card className="p-6 bg-white border-border shadow-sm">
-                  <h3 className="text-lg font-bold text-foreground mb-6">Calories Weekly</h3>
-                  <div className="h-64 flex items-end justify-between gap-2">
-                    {weeklyData.map((day, idx) => {
-                      const percentage = day.calories > 0 ? (day.calories / 2400) * 100 : 0
-
-                      return (
-                        <div key={idx} className="flex-1 flex flex-col items-center gap-2">
-                          <div className="relative w-full h-48">
-                            <div
-                              className="absolute bottom-0 w-full bg-slate-800 rounded-t-sm transition-all"
-                              style={{ height: `${Math.max(Math.min(percentage, 100), 5)}%` }}
+                <Card className="p-6 bg-white border-border shadow-sm rounded-xl overflow-hidden group">
+                  <div className="flex items-center justify-between mb-8">
+                    <div>
+                      <h3 className="text-l font-black text-slate-700 uppercase tracking-tight">Calories Weekly</h3>
+                      <p className="text-xs text-muted-foreground font-bold">Goal vs Actual</p>
+                    </div>
+                    <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-600 transition-colors">
+                      <Flame className="w-5 h-5 fill-current" />
+                    </div>
+                  </div>
+                  <div className="h-72 w-full">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart data={weeklyData} margin={{ top: 20, right: 10, left: -20, bottom: 0 }}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                        <XAxis
+                          dataKey="day"
+                          axisLine={false}
+                          tickLine={false}
+                          tick={{ fill: '#94a3b8', fontSize: 12, fontWeight: 700 }}
+                          dy={10}
+                        />
+                        <YAxis hide />
+                        <Tooltip
+                          cursor={{ fill: '#f8fafc', radius: 12 }}
+                          content={({ active, payload }) => {
+                            if (active && payload && payload.length) {
+                              const data = payload[0].payload;
+                              return (
+                                <div className="bg-slate-900/95 text-white p-4 rounded-xl shadow-xl border border-white/10 animate-in zoom-in-95">
+                                  <p className="text-[10px] font-bold uppercase tracking-widest text-white/50 mb-2">{data.day}</p>
+                                  <div className="space-y-1">
+                                    <p className="text-lg font-bold leading-none">{Math.round(data.calories)}<span className="text-[10px] ml-1 opacity-60 uppercase">Consumed</span></p>
+                                    <p className="text-xs font-bold text-emerald-400">Goal: {data.goal} kcal</p>
+                                  </div>
+                                </div>
+                              );
+                            }
+                            return null;
+                          }}
+                        />
+                        <Bar
+                          dataKey="calories"
+                          radius={[12, 12, 12, 12]}
+                          onClick={() => onNavigate('meal-tracker')}
+                          className="cursor-pointer"
+                        >
+                          {weeklyData.map((entry, index) => (
+                            <Cell
+                              key={`cell-${index}`}
+                              fill={entry.calories > entry.goal ? '#ef4444' : '#10b981'}
+                              fillOpacity={0.8}
                             />
-                          </div>
-                          <span className="text-xs text-muted-foreground">{day.day}</span>
-                        </div>
-                      )
-                    })}
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
                   </div>
                 </Card>
               </div>
@@ -325,7 +495,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                   </Card>
                 ))}
               </div>
-            </>
+            </div>
           )}
 
         </div>

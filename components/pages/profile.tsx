@@ -41,6 +41,7 @@ interface ProfileData {
     other_goal: string
     allergies: string
     goal_timeline: string
+    target_weight: string
 }
 
 interface ProfileProps {
@@ -64,7 +65,8 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
         goal: 'healthy',
         other_goal: '',
         allergies: '',
-        goal_timeline: '3'
+        goal_timeline: '3',
+        target_weight: ''
     })
 
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -94,7 +96,8 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
                     goal: data?.goal || 'healthy',
                     other_goal: data?.other_goal || '',
                     allergies: data?.allergies || '',
-                    goal_timeline: data?.goal_timeline || '3'
+                    goal_timeline: data?.goal_timeline || '3',
+                    target_weight: data?.target_weight?.toString() || ''
                 }
 
                 setProfile(initialProfile)
@@ -172,6 +175,7 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
                 age: profile.age ? parseInt(profile.age) : null,
                 weight: profile.weight ? parseFloat(profile.weight) : null,
                 height: profile.height ? parseFloat(profile.height) : null,
+                target_weight: profile.target_weight ? parseFloat(profile.target_weight) : null,
                 gender: profile.gender,
                 goal: profile.goal,
                 other_goal: profile.goal === 'other' ? profile.other_goal : '',
@@ -354,7 +358,7 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
                                     </div>
                                     <div className="grid grid-cols-2 gap-4">
                                         <div className="space-y-2">
-                                            <Label className="text-[10px] font-bold text-muted-foreground ml-1">Weight (kg)</Label>
+                                            <Label className="text-[10px] font-bold text-muted-foreground ml-1">Current Weight (kg)</Label>
                                             <Input
                                                 type="number" step="0.1"
                                                 value={profile.weight}
@@ -372,6 +376,21 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
                                             />
                                         </div>
                                     </div>
+                                    {(profile.goal === 'weight_loss' || profile.goal === 'weight_gain') && (
+                                        <div className="space-y-2 mt-4 p-4 bg-emerald-50/50 rounded-2xl border border-emerald-200/50">
+                                            <Label className="text-xs font-bold text-emerald-700 flex items-center gap-2">
+                                                🎯 Target Weight (kg)
+                                            </Label>
+                                            <Input
+                                                type="number" step="0.1"
+                                                placeholder={profile.goal === 'weight_loss' ? 'e.g. 65' : 'e.g. 75'}
+                                                value={profile.target_weight}
+                                                onChange={(e) => setProfile({ ...profile, target_weight: e.target.value })}
+                                                className="h-14 rounded-2xl bg-white border-2 border-emerald-200 focus:border-emerald-500"
+                                            />
+                                            <p className="text-[10px] text-emerald-600 italic px-1">Your calorie goal will be calculated based on the gap between your current and target weight.</p>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
 
