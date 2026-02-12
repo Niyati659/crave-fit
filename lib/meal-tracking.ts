@@ -8,6 +8,7 @@ export interface MealEntry {
   fiber: number
   time: string // HH:MM format
   imageUrl?: string
+  detectedFood?: string
 }
 
 export interface DailyGoals {

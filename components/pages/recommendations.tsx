@@ -302,6 +302,7 @@ interface RecommendationsScreenProps {
   onHealthPreferenceChange: (value: number) => void
   onBack: () => void
   onMealTrackerClick?: () => void
+  onCookWithChef?: (recipe: { name: string, instructions: string[] }) => void
 }
 
 export function RecommendationsScreen({
@@ -310,6 +311,7 @@ export function RecommendationsScreen({
   onHealthPreferenceChange,
   onBack,
   onMealTrackerClick,
+  onCookWithChef,
 }: RecommendationsScreenProps) {
 
   const [recipes, setRecipes] = useState<any[]>([])

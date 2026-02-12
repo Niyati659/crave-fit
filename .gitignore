@@ -11,3 +11,11 @@ node_modules/
 .env*.local
 .DS_Store
 .vercel
+venv/
+.venv/
+
+backend/model/
+*.safetensors
+*.pt
+*.pth
+*.h5
