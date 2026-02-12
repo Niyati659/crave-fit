@@ -48,6 +48,19 @@ const quizQuestions = [
       { text: 'Full Meal', emoji: '🍱' },
     ],
   },
+
+  // ⭐ NEW QUESTION ADDED
+  {
+    id: 'diet',
+    question: 'What kind of meals do you prefer?',
+    answers: [
+      { text: 'Vegetarian', emoji: '🥦' },
+      { text: 'Vegan', emoji: '🌱' },
+      { text: 'High Protein', emoji: '💪' },
+      { text: 'Dairy-Free', emoji: '🥛' },
+      { text: 'Gluten-Free', emoji: '🌾' },
+    ],
+  },
 ]
 
 export function QuizFlow({ onComplete, onSkip, onBack }: QuizFlowProps) {
@@ -68,6 +81,7 @@ export function QuizFlow({ onComplete, onSkip, onBack }: QuizFlowProps) {
         ...answers,
         [currentQuestion.id]: selectedAnswer,
       }
+
       setAnswers(newAnswers)
       setSelectedAnswer(null)
 
@@ -92,6 +106,7 @@ export function QuizFlow({ onComplete, onSkip, onBack }: QuizFlowProps) {
           >
             <ArrowLeft className="w-5 h-5" />
           </Button>
+
           <div className="flex-1 mx-4">
             <div className="w-full bg-muted rounded-full h-2">
               <div
@@ -100,6 +115,7 @@ export function QuizFlow({ onComplete, onSkip, onBack }: QuizFlowProps) {
               />
             </div>
           </div>
+
           <span className="text-sm font-medium text-muted-foreground whitespace-nowrap">
             {currentStep + 1}/{quizQuestions.length}
           </span>
@@ -116,7 +132,7 @@ export function QuizFlow({ onComplete, onSkip, onBack }: QuizFlowProps) {
             </h2>
           </div>
 
-          {/* Answer Options */}
+          {/* Answers */}
           <div className="grid gap-4 animate-slide-up">
             {currentQuestion.answers.map((answer, index) => (
               <button
@@ -137,6 +153,7 @@ export function QuizFlow({ onComplete, onSkip, onBack }: QuizFlowProps) {
                     {answer.text}
                   </span>
                 </div>
+
                 {selectedAnswer === answer.text && (
                   <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">
                     <ChevronRight className="w-4 h-4 text-primary-foreground" />
@@ -146,7 +163,7 @@ export function QuizFlow({ onComplete, onSkip, onBack }: QuizFlowProps) {
             ))}
           </div>
 
-          {/* Action Buttons */}
+          {/* Buttons */}
           <div className="flex flex-col sm:flex-row gap-3 pt-6">
             <Button
               variant="outline"
@@ -156,6 +173,7 @@ export function QuizFlow({ onComplete, onSkip, onBack }: QuizFlowProps) {
             >
               Skip Quiz
             </Button>
+
             <Button
               onClick={handleNext}
               disabled={!selectedAnswer}

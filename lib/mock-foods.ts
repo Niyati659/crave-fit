@@ -192,44 +192,10 @@ export const mockFoods: Food[] = [
   },
 ]
 
-export function getRecommendedFoods(
-  quizAnswers?: Record<string, string>,
-  healthPreference?: number
-): Food[] {
-  if (!quizAnswers || Object.keys(quizAnswers).length === 0) {
-    return mockFoods.sort((a, b) => b.healthScore - a.healthScore)
-  }
-
-  const answers = Object.values(quizAnswers).map((a) => a.toLowerCase())
-  const preference = healthPreference || 50
-
-  const scored = mockFoods.map((food) => {
-    let score = 0
-
-    // Match cravings - base score
-    answers.forEach((answer) => {
-      if (food.cravingMatch.some((match) => answer.includes(match) || match.includes(answer))) {
-        score += 40
-      }
-    })
-
-    // Apply health preference with stronger influence (0 = indulgent, 50 = balanced, 100 = healthy)
-    // Use exponential scaling for more dramatic changes
-    const normalizedHealth = (preference - 50) / 50
-    const healthInfluence = normalizedHealth * normalizedHealth * normalizedHealth * 50
-
-    // Boost healthy foods when preference > 50, boost indulgent when < 50
-    if (preference > 50) {
-      score += (food.healthScore / 100) * healthInfluence
-    } else if (preference < 50) {
-      score += ((100 - food.healthScore) / 100) * Math.abs(healthInfluence)
-    }
-
-    return { food, score }
-  })
-
-  return scored.sort((a, b) => b.score - a.score).map((s) => s.food)
+export function getRecommendedFoods() {
+  return mockFoods
 }
+
 
 export function getCravingDescription(answers: Record<string, string>): string {
   const mood = answers.mood || ''
