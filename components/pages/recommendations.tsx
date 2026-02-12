@@ -1,289 +1,8 @@
-// 'use client'
-
-// import { useState, useEffect, useCallback } from 'react'
-// import { Button } from '@/components/ui/button'
-// import { Slider } from '@/components/ui/slider'
-// import { ArrowLeft, Zap, Leaf } from 'lucide-react'
-
-// import {
-//   getRecipesByCalories,
-//   getRecipeMasterInfo,
-//   getNutritionMasterInfo,
-//   getRecipeInstructions,
-// } from '@/lib/api'
-
-// import { FoodDetailModal } from '@/components/food-detail-modal'
-
-// interface RecommendationsScreenProps {
-//   quizMeta: any
-//   healthPreference: number
-//   onHealthPreferenceChange: (value: number) => void
-//   onBack: () => void
-//   onMealTrackerClick?: () => void
-// }
-
-// export function RecommendationsScreen({
-//   quizMeta,
-//   healthPreference,
-//   onHealthPreferenceChange,
-//   onBack,
-//   onMealTrackerClick,
-// }: RecommendationsScreenProps) {
-//   const [recipes, setRecipes] = useState<any[]>([])
-//   const [selectedRecipe, setSelectedRecipe] = useState<any | null>(null)
-//   const [loading, setLoading] = useState(true)
-//   const [masterInfo, setMasterInfo] = useState<any[]>([])
-//   const [masterNutrition, setMasterNutrition] = useState<any[]>([])
-
-//   /* ✅ NORMALIZER */
-//   const normalizeRecipe = (recipe: any, index: number) => ({
-//     id:
-//       recipe.Recipe_id ||
-//       recipe.RecipeId ||
-//       recipe.recipeId ||
-//       recipe._id ||
-//       `fallback-${index}`,
-
-//     name:
-//       recipe.Recipe_title ||
-//       recipe.RecipeName ||
-//       recipe.name ||
-//       'Unnamed Meal',
-
-//     image: recipe.ImageURL || recipe.image || '/placeholder.jpg',
-
-//     calories:
-//       Number(recipe['Energy (kcal)']) ||
-//       Number(recipe.Calories) ||
-//       0,
-//   })
-
-//   /* ✅ LOAD MASTER DATA ONCE */
-//   useEffect(() => {
-//     const loadMasterData = async () => {
-//       try {
-//         const infoData = await getRecipeMasterInfo()
-//         const nutritionData = await getNutritionMasterInfo()
-
-//         console.log('MASTER INFO:', infoData)
-//         console.log('MASTER NUTRITION:', nutritionData)
-
-//         setMasterInfo(infoData || [])
-//         setMasterNutrition(nutritionData || [])
-//       } catch (err) {
-//         console.error('MASTER DATA ERROR:', err)
-//       }
-//     }
-
-//     loadMasterData()
-//   }, [])
-
-//   /* ✅ FETCH RECIPES (STABLE FUNCTION) */
-//   const fetchRecipes = useCallback(async () => {
-//     if (!quizMeta?.calorieRange) return
-
-//     try {
-//       setLoading(true)
-
-//       const data = await getRecipesByCalories(
-//         quizMeta.calorieRange.min,
-//         quizMeta.calorieRange.max
-//       )
-
-//       console.log('CALORIES API:', data)
-
-//       setRecipes(
-//         data?.payload?.data ||
-//         data?.data ||
-//         []
-//       )
-//     } catch (err) {
-//       console.error('RECIPES ERROR:', err)
-//     } finally {
-//       setLoading(false)
-//     }
-//   }, [quizMeta?.calorieRange?.min, quizMeta?.calorieRange?.max])
-
-//   /* ✅ DEPENDENCY FIX */
-//   useEffect(() => {
-//     fetchRecipes()
-//   }, [fetchRecipes])
-
-//   /* ✅ FULL HYDRATION */
-//   const handleRecipeClick = async (recipeId: string) => {
-//     try {
-//       setLoading(true)
-
-//       const info = masterInfo.find(
-//         r => String(r.Recipe_id) === String(recipeId)
-//       )
-
-//       const nutrition = masterNutrition.find(
-//         n => String(n.Recipe_id) === String(recipeId)
-//       )
-
-//       const instructionsData = await getRecipeInstructions(recipeId)
-
-//       const fullRecipe = {
-//         id: recipeId,
-//         name: info?.Recipe_title || 'Unnamed Meal',
-//         image: info?.ImageURL || '/placeholder.jpg',
-//         cuisine: info?.Region,
-//         prepTime: info?.prep_time || 0,
-
-//         calories: Number(nutrition?.['Energy (kcal)']) || 0,
-//         protein: Number(nutrition?.['Protein (g)']) || 0,
-//         carbs: Number(nutrition?.['Carbohydrate, by difference (g)']) || 0,
-//         fat: Number(nutrition?.['Total lipid (fat) (g)']) || 0,
-
-//         ingredients: [],
-//         instructions: instructionsData?.steps || [],
-//       }
-
-//       console.log('FULL HYDRATED:', fullRecipe)
-
-//       setSelectedRecipe(fullRecipe)
-//     } catch (err) {
-//       console.error('HYDRATION ERROR:', err)
-//     } finally {
-//       setLoading(false)
-//     }
-//   }
-
-//   return (
-//     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/3 flex flex-col">
-
-//       {/* Header */}
-//       <header className="sticky top-0 z-20 bg-white/50 backdrop-blur-sm border-b border-border/30 py-4 px-4">
-//         <div className="max-w-6xl mx-auto flex items-center justify-between">
-//           <Button variant="ghost" size="icon" onClick={onBack}>
-//             <ArrowLeft className="w-5 h-5" />
-//           </Button>
-
-//           <h1 className="flex-1 text-center text-2xl font-bold">
-//             Meals Matched to Your Craving
-//           </h1>
-
-//           {onMealTrackerClick && (
-//             <Button onClick={onMealTrackerClick} size="sm">
-//               Tracker
-//             </Button>
-//           )}
-//         </div>
-//       </header>
-
-//       {/* Content */}
-//       <div className="flex-1 px-4 py-10">
-//         <div className="max-w-6xl mx-auto space-y-10">
-
-//           {/* Craving */}
-//           {quizMeta?.cravingProfile && (
-//             <div className="bg-primary/10 rounded-2xl p-6 text-center">
-//               <div className="flex items-center justify-center gap-2 mb-2">
-//                 <Zap className="w-5 h-5 text-primary" />
-//                 <p className="text-xs font-bold text-primary uppercase">
-//                   Your Craving
-//                 </p>
-//               </div>
-//               <p className="text-2xl font-bold">
-//                 {quizMeta.cravingProfile}
-//               </p>
-//             </div>
-//           )}
-
-//           {/* Reasons */}
-//           {quizMeta?.reasons && (
-//             <div className="bg-secondary/10 rounded-2xl p-6">
-//               <p className="text-sm font-bold mb-2">
-//                 Why these meals?
-//               </p>
-//               <ul className="text-sm text-muted-foreground space-y-1">
-//                 {quizMeta.reasons.map((reason: string) => (
-//                   <li key={reason}>✔ {reason}</li>
-//                 ))}
-//               </ul>
-//             </div>
-//           )}
-
-//           {/* Slider */}
-//           <div className="bg-white rounded-2xl p-6 border space-y-4">
-//             <div className="flex items-center gap-2">
-//               <Leaf className="w-4 h-4 text-primary" />
-//               <p className="text-sm font-bold">
-//                 Adjust Health Preference
-//               </p>
-//             </div>
-
-//             <Slider
-//               value={[healthPreference]}
-//               onValueChange={(val) =>
-//                 onHealthPreferenceChange(val[0])
-//               }
-//               min={0}
-//               max={100}
-//               step={1}
-//             />
-//           </div>
-
-//           {/* Header */}
-//           <div className="flex items-center justify-between">
-//             <h2 className="text-xl font-bold">
-//               Recommended Meals
-//             </h2>
-
-//             <span className="text-sm font-bold text-primary bg-primary/10 px-4 py-2 rounded-full">
-//               {recipes.length} Options
-//             </span>
-//           </div>
-
-//           {/* Grid */}
-//           {loading ? (
-//             <div className="text-center text-muted-foreground">
-//               Finding meals aligned with your craving...
-//             </div>
-//           ) : (
-//             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-//               {recipes.map((rawRecipe, index) => {
-//                 const recipe = normalizeRecipe(rawRecipe, index)
-
-//                 return (
-//                   <div
-//                     key={`${recipe.id}-${index}`}
-//                     onClick={() => handleRecipeClick(recipe.id)}
-//                     className="rounded-2xl border p-4 hover:shadow-md cursor-pointer transition-all hover:scale-[1.02]"
-//                   >
-//                     <img
-//                       src={recipe.image}
-//                       className="rounded-xl mb-3"
-//                     />
-
-//                     <p className="font-bold">
-//                       {recipe.name}
-//                     </p>
-
-//                     <p className="text-sm text-muted-foreground">
-//                       {recipe.calories} kcal
-//                     </p>
-//                   </div>
-//                 )
-//               })}
-//             </div>
-//           )}
-//         </div>
-//       </div>
-
-//       {/* Modal */}
-//       <FoodDetailModal
-//         recipe={selectedRecipe}
-//         onClose={() => setSelectedRecipe(null)}
-//       />
-//     </div>
-//   )
-// }
 'use client'
 
 let RECIPES_CACHE:any[] = []
-
+let DETAILS_CACHE:any = {}
+let INSTRUCTIONS_CACHE:any = {}
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
@@ -292,6 +11,7 @@ import { ArrowLeft, Zap, Leaf } from 'lucide-react'
 import {
   getRecipesInfo,
   getRecipeInstructions,
+  getRecipeDetails,
 } from '@/lib/api'
 
 import { FoodDetailModal } from '@/components/recommendationfood-detail-modal'
@@ -381,6 +101,20 @@ export function RecommendationsScreen({
   /* -------------------------------------------------- */
   /* ⭐ Ranking Engine */
   /* -------------------------------------------------- */
+  const parseTasteProfile = (tasteText:string) => {
+
+  if (!tasteText) return {}
+
+  const text = tasteText.toLowerCase()
+
+  return {
+    sweet: text.includes('sweet'),
+    spicy: text.includes('spicy'),
+    salty: text.includes('salty'),
+    bitter: text.includes('bitter'),
+    umami: text.includes('umami'),
+  }
+}
 
   const scoreRecipe = (recipe:any) => {
 
@@ -439,25 +173,29 @@ export function RecommendationsScreen({
 
       const MIN_RECIPES = 10
 
-     if (RECIPES_CACHE.length === 0) {
+if (RECIPES_CACHE.length === 0) {
 
   console.log("LOADING CACHE...")
 
   let combined:any[] = []
 
-  for (let page = 1; page <= 20; page++) {
+  for (let page = 1; page <= 5; page++) {
 
     console.log("FETCH PAGE:", page)
 
     const data = await getRecipesInfo(page, 100)
 
     combined = [...combined, ...(data.recipes || [])]
+
+    /* ⭐ POLITE API DELAY */
+    await new Promise(r => setTimeout(r, 300))
   }
 
   RECIPES_CACHE = combined
 
   console.log("CACHE SIZE:", RECIPES_CACHE.length)
 }
+
 
       else {
         console.log("USING CACHE 😌")
@@ -491,30 +229,59 @@ export function RecommendationsScreen({
   /* ⭐ Click Handler */
   /* -------------------------------------------------- */
 
-  const handleRecipeClick = async (recipe:any) => {
+const handleRecipeClick = async (recipe:any) => {
 
-    console.log("CLICKED:", recipe)
+  console.log("CLICKED:", recipe)
 
-    setLoading(true)
+  setLoading(true)
 
-    const instructionsData = await getRecipeInstructions(recipe.id)
+  let instructionsData
+  let detailsData
 
-    const fullRecipe = {
-      id: recipe.id,
-      name: recipe.title,
-      image: '/placeholder.svg',
+  /* ✅ Instructions Cache */
+  if (INSTRUCTIONS_CACHE[recipe.id]) {
 
-      prepTime: recipe.prepTime,
-      calories: recipe.calories,
-      protein: recipe.protein,
-
-      instructions: instructionsData.instructions,
-    }
-
-    setSelectedRecipe(fullRecipe)
-
-    setLoading(false)
+    instructionsData = INSTRUCTIONS_CACHE[recipe.id]
   }
+  else {
+
+    instructionsData = await getRecipeInstructions(recipe.id)
+    INSTRUCTIONS_CACHE[recipe.id] = instructionsData
+  }
+
+  /* ✅ Details Cache */
+  if (DETAILS_CACHE[recipe.id]) {
+
+    detailsData = DETAILS_CACHE[recipe.id]
+  }
+  else {
+
+    detailsData = await getRecipeDetails(recipe.id)
+    DETAILS_CACHE[recipe.id] = detailsData
+  }
+
+  const fullRecipe = {
+    id: recipe.id,
+    name: recipe.title,
+    image: '/placeholder.svg',
+
+    prepTime: recipe.prepTime,
+    calories: recipe.calories,
+    protein: recipe.protein,
+
+    instructions: instructionsData.instructions,
+
+    ingredients: detailsData.ingredients.map(
+      (ing:any) => ing.ingredient
+    ),
+  }
+
+  setSelectedRecipe(fullRecipe)
+
+  setLoading(false)
+}
+
+
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/3 flex flex-col">
@@ -605,12 +372,5 @@ export function RecommendationsScreen({
         onClose={() => setSelectedRecipe(null)}
       />
     </div>
-  );
+  )
 }
-
-
-
-
-
-
-
