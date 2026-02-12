@@ -11,14 +11,15 @@ import { Dashboard } from '@/components/pages/dashboard'
 import { Profile } from '@/components/pages/profile'
 import { Header } from '@/components/header'
 
-// import { authStorage } from '@/lib/auth'
+import { supabase } from '@/lib/supabase'
+import { ChefFriend } from '@/components/chef-friend'
 
+// import { authStorage } from '@/lib/auth'
 // ⭐ NEW QUIZ ENGINE
 import { generateCravingProfile } from '@/lib/quiz-engine'
 
-import { ChefFriend } from '@/components/chef-friend'
-import { supabase } from '@/lib/supabase'
 import { BrowseScreen } from '@/components/pages/browse'
+import { type Recipe } from '@/lib/recipes'
 
 type PageView =
   | 'dashboard'
@@ -42,7 +43,7 @@ export default function Page() {
   const [healthPreference, setHealthPreference] = useState(50)
   const [isLoggedIn, setIsLoggedIn] = useState(false)
   const [userData, setUserData] = useState<any>(null)
-  const [activeRecipe, setActiveRecipe] = useState<{ name: string, instructions: string[] } | undefined>(undefined)
+  const [activeRecipe, setActiveRecipe] = useState<Partial<Recipe> | undefined>(undefined)
 
   const fetchProfile = async (userId: string) => {
     const { data, error } = await supabase
@@ -134,17 +135,17 @@ export default function Page() {
   }
 
   useEffect(() => {
-  if (!quizAnswers || Object.keys(quizAnswers).length === 0) return
+    if (!quizAnswers || Object.keys(quizAnswers).length === 0) return
 
-  const updatedMeta = generateCravingProfile(
-    quizAnswers,
-    healthPreference // ⭐ THIS IS MAGIC
-  )
+    const updatedMeta = generateCravingProfile(
+      quizAnswers,
+      healthPreference // ⭐ THIS IS MAGIC
+    )
 
-  setQuizMeta((prev:any) => ({
-    ...prev,
-    ...updatedMeta,
-  }))
+    setQuizMeta((prev: any) => ({
+      ...prev,
+      ...updatedMeta,
+    }))
   }, [healthPreference])
 
 
@@ -208,7 +209,7 @@ export default function Page() {
           onHealthPreferenceChange={setHealthPreference}
           onBack={handleBackToLanding}
           onMealTrackerClick={() => handleNavigate('meal-tracker')}
-          onCookWithChef={(recipe: { name: string, instructions: string[] }) => {
+          onCookWithChef={(recipe: Partial<Recipe>) => {
             setActiveRecipe(recipe)
             setCurrentView('chef')
           }}
