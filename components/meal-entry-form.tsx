@@ -111,7 +111,7 @@ export function MealEntryForm({ onSave, onCancel }: MealEntryFormProps) {
 
         // 4️⃣ Save meal
         onSave({
-          name: "Photo Meal",
+          name: detectedFood.replace(/_/g, " "),
           detectedFood,
           imageUrl,
           time: formData.time,
