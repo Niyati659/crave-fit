@@ -155,7 +155,7 @@ export default function Page() {
       {currentView === 'profile' && (
         <Profile
           onBack={() => setCurrentView('dashboard')}
-          onUpdate={() => fetchProfile(userData?.id || '')}
+          onUpdate={(userId?: string) => fetchProfile(userId || userData?.id || '')}
         />
       )}
       {currentView === 'chef' && (
