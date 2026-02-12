@@ -146,30 +146,32 @@ export function BrowseScreen({ onBack }: BrowseScreenProps) {
           <>
             {/* Diet Toggle Filters */}
             <div className="flex flex-wrap gap-3 pb-4">
-  {["All", "Vegan", "Vegetarian", "Pescetarian", "Non-Vegetarian"].map(
-    (type) => {
-      const isActive =
-        (type === "All" && activeDiet === null) ||
-        activeDiet === type;
+              {[
+                "All",
+                "Vegan",
+                "Vegetarian",
+                "Pescetarian",
+                "Non-Vegetarian",
+              ].map((type) => {
+                const isActive =
+                  (type === "All" && activeDiet === null) ||
+                  activeDiet === type;
 
-      return (
-        <button
-          key={type}
-          onClick={() =>
-            setActiveDiet(type === "All" ? null : type)
-          }
-          className={`px-4 py-2 rounded-full text-sm font-medium transition ${
-            isActive
-              ? "bg-primary text-white"
-              : "bg-muted text-muted-foreground hover:bg-muted/70"
-          }`}
-        >
-          {type}
-        </button>
-      );
-    }
-  )}
-</div>
+                return (
+                  <button
+                    key={type}
+                    onClick={() => setActiveDiet(type === "All" ? null : type)}
+                    className={`px-4 py-2 rounded-full text-sm font-medium transition ${
+                      isActive
+                        ? "bg-primary text-white"
+                        : "bg-muted text-muted-foreground hover:bg-muted/70"
+                    }`}
+                  >
+                    {type}
+                  </button>
+                );
+              })}
+            </div>
 
             {/* Filtered Results Grid */}
             {filteredResults.length === 0 ? (

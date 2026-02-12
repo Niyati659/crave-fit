@@ -26,10 +26,9 @@ export function RecommendationsScreen({
 }: RecommendationsScreenProps) {
   const [selectedFood, setSelectedFood] = useState<Food | null>(null);
   // const recommendedFoods = getRecommendedFoods(quizAnswers, healthPreference);
-  const cravingDescription =
-    Object.keys(quizAnswers).length > 0
-      // ? getCravingDescription(quizAnswers)
-      // : null;
+  const cravingDescription = Object.keys(quizAnswers).length > 0;
+  // ? getCravingDescription(quizAnswers)
+  // : null;
 
   // Calculate match scores for each food based on preference
   const getFoodMatchScore = (food: Food): number => {
