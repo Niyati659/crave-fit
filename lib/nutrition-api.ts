@@ -12,14 +12,27 @@ export async function fetchNutrition(query: string) {
     }
   )
 
-  const data = await res.json()
+  if (!res.ok) {
+    const text = await res.text()
+    console.error("Nutrition API error response:", text)
+    throw new Error(`Nutrition API failed: ${text || res.statusText}`)
+  }
+
+  let data
+  try {
+    data = await res.json()
+  } catch (err) {
+    const text = await res.text()
+    console.error("Failed to parse nutrition JSON. Response body:", text)
+    throw new Error(`Invalid JSON response from nutrition server: ${text.slice(0, 100)}`)
+  }
 
   if (!data.items || data.items.length === 0) {
     throw new Error("No nutrition found")
   }
 
   const totals = data.items.reduce(
-    (acc, item) => {
+    (acc: any, item: any) => {
       acc.calories += item.calories || 0
       acc.protein += item.protein_g || 0
       acc.carbs += item.carbohydrates_total_g || 0

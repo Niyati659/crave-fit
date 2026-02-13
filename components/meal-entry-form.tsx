@@ -10,6 +10,7 @@ import {
   getSuggestedMeals,
   DailyProgress
 } from '@/lib/meal-tracking'
+import { supabase } from '@/lib/supabase'
 
 
 interface MealEntryFormProps {
@@ -18,7 +19,7 @@ interface MealEntryFormProps {
   onCancel: () => void
 }
 
-export function MealEntryForm({currentProgress, onSave, onCancel }: MealEntryFormProps) {
+export function MealEntryForm({ currentProgress, onSave, onCancel }: MealEntryFormProps) {
 
   const [mode, setMode] = useState<
     "manual" | "macro" | "photo" | "quick"
@@ -106,20 +107,20 @@ export function MealEntryForm({currentProgress, onSave, onCancel }: MealEntryFor
       try {
         setPhotoLoading(true)
 
-        // 1️⃣ Detect food from image
-        const detectedFood = await detectFoodFromImage(photoFile)
+        // 1️⃣ Detect food from image (AI Detection)
+        const label = await detectFoodFromImage(photoFile)
 
         // 2️⃣ Fetch nutrition using detected label
-        const nutrition = await fetchNutrition(detectedFood)
+        const nutrition = await fetchNutrition(label)
 
-        // 3️⃣ Create image preview
-        const imageUrl = URL.createObjectURL(photoFile)
+        // 3️⃣ Create temporary preview URL (No Supabase upload as per user request)
+        const localImageUrl = URL.createObjectURL(photoFile)
 
-        // 4️⃣ Save meal
+        // 4️⃣ Save meal with the local blob URL
         onSave({
-          name: detectedFood.replace(/_/g, " "),
-          detectedFood,
-          imageUrl,
+          name: label.replace(/_/g, " "),
+          detectedFood: label,
+          imageUrl: localImageUrl,
           time: formData.time,
           ...nutrition,
         })
@@ -249,36 +250,36 @@ export function MealEntryForm({currentProgress, onSave, onCancel }: MealEntryFor
         </div>
       )}
 
-{mode === "quick" && (
-  <div className="grid grid-cols-2 gap-3">
+      {mode === "quick" && (
+        <div className="grid grid-cols-2 gap-3">
 
-    {suggestions.quick.length === 0 ? (
-      <p className="text-sm text-muted-foreground">
-        Log meals to see quick suggestions
-      </p>
-    ) : (
-      suggestions.quick.map((meal) => (
-        <div
-          key={meal.id}
-          onClick={() => onSave(meal)}
-          className="
+          {suggestions.quick.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              Log meals to see quick suggestions
+            </p>
+          ) : (
+            suggestions.quick.map((meal) => (
+              <div
+                key={meal.id}
+                onClick={() => onSave(meal)}
+                className="
             border rounded-xl p-4 cursor-pointer
             hover:bg-muted transition
           "
-        >
-          <p className="font-semibold">
-            {meal.detectedFood || meal.name}
-          </p>
+              >
+                <p className="font-semibold">
+                  {meal.detectedFood || meal.name}
+                </p>
 
-          <p className="text-xs text-muted-foreground">
-            {meal.calories} kcal • {meal.protein}g protein
-          </p>
+                <p className="text-xs text-muted-foreground">
+                  {meal.calories} kcal • {meal.protein}g protein
+                </p>
+              </div>
+            ))
+          )}
+
         </div>
-      ))
-    )}
-
-  </div>
-)}
+      )}
 
       {/* 🧮 MACRO MODE (YOUR ORIGINAL FORM — UNTOUCHED) */}
       {mode === "macro" && (
@@ -330,7 +331,7 @@ export function MealEntryForm({currentProgress, onSave, onCancel }: MealEntryFor
                 <input
                   type="number"
                   step="0.1"
-                  value={formData[item.key]}
+                  value={formData[item.key as keyof typeof formData] as number}
                   onChange={(e) =>
                     setFormData({
                       ...formData,
