@@ -14,10 +14,11 @@ import {
   getRecipeInstructions,
   getRecipeDetails,
   searchRecipesByIngredientCategoriesTitle,
-  enrichRecipesWithDetails,
+
 } from '@/lib/api'
 
 import { getDishImage } from '@/lib/dish-image-service'
+import { supabase } from '@/lib/supabase'
 import { FoodDetailModal } from '@/components/recommendationfood-detail-modal'
 
 interface RecommendationsScreenProps {
@@ -194,8 +195,8 @@ export function RecommendationsScreen({
 
           combined = [...combined, ...(data.recipes || [])]
 
-          /* ⭐ POLITE API DELAY */
-          await new Promise(r => setTimeout(r, 300))
+          /* ⭐ POLITE API DELAY — 25 req/min limit = ~2.5s per call */
+          await new Promise(r => setTimeout(r, 3000))
         }
 
         RECIPES_CACHE = combined
@@ -221,35 +222,53 @@ export function RecommendationsScreen({
 
       if (quizMeta?.sweetBias) {
         console.log('🍬 SWEET BIAS — fetching targeted recipes')
-        for (let pg = 1; pg <= 3; pg++) {
-          const sweetData = await searchRecipesByIngredientCategoriesTitle({
-            includeIngredients: SWEET_INGREDIENTS,
-            excludeIngredients: SAVORY_INGREDIENTS,
-            includeCategories: SWEET_CATEGORIES,
-            excludeCategories: [],
-            page: pg,
-            limit: 50,
-          })
-          targetedRecipes = [...targetedRecipes, ...(sweetData.recipes || [])]
-          await new Promise(r => setTimeout(r, 300))
-        }
+        const sweetData = await searchRecipesByIngredientCategoriesTitle({
+          includeIngredients: SWEET_INGREDIENTS,
+          excludeIngredients: SAVORY_INGREDIENTS,
+          includeCategories: SWEET_CATEGORIES,
+          excludeCategories: [],
+          page: 1,
+          limit: 10,
+        })
+        targetedRecipes = [...(sweetData.recipes || [])]
       } else if (quizMeta?.savoryBias) {
         console.log('🧂 SAVORY BIAS — fetching targeted recipes')
-        for (let pg = 1; pg <= 3; pg++) {
-          const savoryData = await searchRecipesByIngredientCategoriesTitle({
-            includeIngredients: SAVORY_INGREDIENTS,
-            excludeIngredients: SWEET_INGREDIENTS,
-            excludeCategories: SWEET_CATEGORIES,
-            includeCategories: [],
-            page: pg,
-            limit: 50,
-          })
-          targetedRecipes = [...targetedRecipes, ...(savoryData.recipes || [])]
-          await new Promise(r => setTimeout(r, 300))
-        }
+        const savoryData = await searchRecipesByIngredientCategoriesTitle({
+          includeIngredients: SAVORY_INGREDIENTS,
+          excludeIngredients: SWEET_INGREDIENTS,
+          excludeCategories: SWEET_CATEGORIES,
+          includeCategories: [],
+          page: 1,
+          limit: 10,
+        })
+        targetedRecipes = [...(savoryData.recipes || [])]
       }
 
       console.log('TARGETED RECIPES COUNT:', targetedRecipes.length)
+
+      /* ⭐ Cross-reference targeted recipes with master list
+         to fill in protein/carbs/fat that the ingredient API doesn't return */
+      if (targetedRecipes.length > 0 && RECIPES_CACHE.length > 0) {
+        const cacheMap = new Map(RECIPES_CACHE.map((r: any) => [r.id, r]))
+        targetedRecipes = targetedRecipes.map((recipe: any) => {
+          const cached = cacheMap.get(recipe.id)
+          if (cached) {
+            return {
+              ...recipe,
+              protein: cached.protein || recipe.protein,
+              carbs: cached.carbs || recipe.carbs,
+              fat: cached.fat || recipe.fat,
+              energy: cached.energy || recipe.energy,
+              prepTime: cached.prepTime || recipe.prepTime,
+              cookTime: cached.cookTime || recipe.cookTime,
+              utensils: cached.utensils || recipe.utensils,
+              processes: cached.processes || recipe.processes,
+            }
+          }
+          return recipe
+        })
+        console.log('✅ Cross-referenced', targetedRecipes.filter((r: any) => r.protein > 0).length, 'recipes with master list nutrition')
+      }
 
       /* ⭐ If we have targeted results, use ONLY those.
          General pool has no ingredient data so random
@@ -258,10 +277,10 @@ export function RecommendationsScreen({
         ? targetedRecipes
         : [...targetedRecipes, ...RECIPES_CACHE]
 
-      /* 🔬 Enrich targeted recipes with protein/macros */
-      if (targetedRecipes.length > 0) {
-        recipePool = await enrichRecipesWithDetails(recipePool, 10)
-      }
+      /* 🔬 Enrichment no longer needed — nutrition now extracted from master list */
+      // if (targetedRecipes.length > 0) {
+      //   recipePool = await enrichRecipesWithDetails(recipePool, 10)
+      // }
 
       const filtered = getRelaxedRecipes(recipePool)
 
@@ -313,29 +332,91 @@ export function RecommendationsScreen({
 
     setLoading(true)
 
-    let instructionsData
-    let detailsData
+    let instructionsData: any = { instructions: [] }
+    let detailsData: any = { ingredients: [] }
 
-    /* ✅ Instructions Cache */
-    if (INSTRUCTIONS_CACHE[recipe.id]) {
+    /* -------------------------------------------------- */
+    /* 🗄️ STEP 1: Check Supabase cache first              */
+    /* -------------------------------------------------- */
+    try {
+      const { data: cached } = await supabase
+        .from('recipes')
+        .select('instructions, ingredients, protein, carbs, fat, calories')
+        .eq('recipe_id', recipe.id)
+        .limit(1)
+        .single()
 
-      instructionsData = INSTRUCTIONS_CACHE[recipe.id]
-    }
-    else {
+      if (cached && cached.instructions && cached.instructions.length > 0) {
+        console.log('✅ SUPABASE HIT — using cached data for', recipe.title)
+        instructionsData = { instructions: cached.instructions }
+        detailsData = { ingredients: cached.ingredients || [] }
 
-      instructionsData = await getRecipeInstructions(recipe.id)
-      INSTRUCTIONS_CACHE[recipe.id] = instructionsData
-    }
+        // Also fill in nutrition from Supabase if master list was missing
+        if (cached.protein && cached.protein > 0 && recipe.protein === 0) recipe.protein = cached.protein
+        if (cached.carbs && cached.carbs > 0 && recipe.carbs === 0) recipe.carbs = cached.carbs
+        if (cached.fat && cached.fat > 0 && recipe.fat === 0) recipe.fat = cached.fat
+      } else {
+        throw new Error('Cache miss')  // fall through to API
+      }
+    } catch {
+      /* -------------------------------------------------- */
+      /* 🌐 STEP 2: Fallback to Foodoscope API              */
+      /* -------------------------------------------------- */
+      console.log('📡 SUPABASE MISS — calling APIs for', recipe.title)
 
-    /* ✅ Details Cache */
-    if (DETAILS_CACHE[recipe.id]) {
+      /* ✅ Instructions — in-memory cache → API */
+      if (INSTRUCTIONS_CACHE[recipe.id]) {
+        instructionsData = INSTRUCTIONS_CACHE[recipe.id]
+      } else {
+        try {
+          instructionsData = await getRecipeInstructions(recipe.id)
+          INSTRUCTIONS_CACHE[recipe.id] = instructionsData
+        } catch { console.error('Instructions API failed for', recipe.id) }
+      }
 
-      detailsData = DETAILS_CACHE[recipe.id]
-    }
-    else {
+      /* ✅ Details — in-memory cache → API */
+      if (DETAILS_CACHE[recipe.id]) {
+        detailsData = DETAILS_CACHE[recipe.id]
+      } else {
+        try {
+          detailsData = await getRecipeDetails(recipe.id)
+          DETAILS_CACHE[recipe.id] = detailsData
+        } catch { console.error('Details API failed for', recipe.id) }
+      }
 
-      detailsData = await getRecipeDetails(recipe.id)
-      DETAILS_CACHE[recipe.id] = detailsData
+      /* -------------------------------------------------- */
+      /* 💾 STEP 3: Save to Supabase for next time          */
+      /* -------------------------------------------------- */
+      const mappedIngredients = (detailsData.ingredients || []).map((ing: any) => ({
+        name: ing.ingredient || '',
+        quantity: ing.quantity || '0',
+        unit: ing.unit || '',
+        phrase: ing.ingredient_Phrase || ing.ingredient || '',
+      }))
+
+      try {
+        await supabase
+          .from('recipes')
+          .upsert([{
+            recipe_id: recipe.id,
+            name: recipe.title,
+            calories: recipe.calories || 0,
+            protein: recipe.protein || 0,
+            carbs: recipe.carbs || 0,
+            fat: recipe.fat || 0,
+            cook_time: recipe.cookTime || 0,
+            prep_time: recipe.prepTime || 0,
+            servings: recipe.servings || 0,
+            region: recipe.region || '',
+            continent: recipe.continent || '',
+            instructions: instructionsData.instructions || [],
+            ingredients: mappedIngredients,
+          }], { onConflict: 'recipe_id' })
+
+        console.log('💾 Cached to Supabase:', recipe.title)
+      } catch (err) {
+        console.error('Supabase cache write failed:', err)
+      }
     }
 
     // Resolve image for the detail modal
@@ -352,14 +433,35 @@ export function RecommendationsScreen({
       name: recipe.title,
       image: recipeImageUrl,
 
+      // ⭐ Full nutrition from master list
       prepTime: recipe.prepTime,
+      cookTime: recipe.cookTime,
+      totalTime: recipe.totalTime,
+      servings: recipe.servings,
       calories: recipe.calories,
+      energy: recipe.energy,
       protein: recipe.protein,
+      carbs: recipe.carbs,
+      fat: recipe.fat,
 
-      instructions: instructionsData.instructions,
+      // ⭐ Metadata
+      region: recipe.region,
+      subRegion: recipe.subRegion,
+      utensils: recipe.utensils,
+      processes: recipe.processes,
 
-      ingredients: detailsData.ingredients.map(
-        (ing: any) => ing.ingredient
+      // ⭐ Health score: lower cal + higher protein = healthier
+      healthScore: Math.round(
+        Math.min(100, Math.max(0,
+          Math.max(0, 100 - (recipe.calories / 8)) +
+          Math.min(recipe.protein * 2, 40)
+        ))
+      ),
+
+      // ⭐ Instructions & ingredients (from Supabase or API)
+      instructions: instructionsData.instructions || [],
+      ingredients: (detailsData.ingredients || []).map(
+        (ing: any) => typeof ing === 'string' ? ing : (ing.phrase || ing.name || ing.ingredient || ing)
       ),
     }
 
@@ -454,9 +556,12 @@ export function RecommendationsScreen({
                     </p>
 
                     <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
-                      <span>{recipe.calories} kcal</span>
+                      <span>{Math.round(recipe.calories)} kcal</span>
                       {recipe.protein > 0 && (
-                        <span className="text-blue-600 font-medium">{recipe.protein}g protein</span>
+                        <span className="text-blue-600 font-medium">{Math.round(recipe.protein)}g protein</span>
+                      )}
+                      {recipe.carbs > 0 && (
+                        <span className="text-amber-600 font-medium">{Math.round(recipe.carbs)}g carbs</span>
                       )}
                     </div>
                   </div>
@@ -472,6 +577,7 @@ export function RecommendationsScreen({
       <FoodDetailModal
         recipe={selectedRecipe}
         onClose={() => setSelectedRecipe(null)}
+        onCookWithChef={onCookWithChef}
       />
     </div>
   )

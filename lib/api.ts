@@ -36,13 +36,33 @@ export async function getRecipesInfo(page = 1, limit = 300) {
     const normalizedRecipes = (data?.payload?.data || []).map((r: any) => ({
       id: r.Recipe_id,
       title: r.Recipe_title,
+
+      // ⭐ Timing
       prepTime: Number(r.prep_time) || 0,
+      cookTime: Number(r.cook_time) || 0,
+      totalTime: Number(r.total_time) || 0,
+      servings: Number(r.servings) || 1,
+
+      // ⭐ Full Nutrition (from master list — no extra API call needed)
       calories: Number(r.Calories) || 0,
+      energy: Number(r['Energy (kcal)']) || 0,
       protein: Number(r['Protein (g)']) || 0,
+      carbs: Number(r['Carbohydrate, by difference (g)']) || 0,
+      fat: Number(r['Total lipid (fat) (g)']) || 0,
 
+      // ⭐ Geography
       region: r.Region || '',
+      subRegion: r.Sub_region || '',
+      continent: r.Continent || '',
 
+      // ⭐ Cooking Metadata
+      utensils: r.Utensils || '',
+      processes: r.Processes || '',
+      source: r.Source || '',
+
+      // ⭐ Diet flags
       isVegan: Number(r.vegan) === 1,
+      isPescetarian: Number(r.pescetarian) === 1,
       isVegetarian:
         Number(r.ovo_vegetarian) === 1 ||
         Number(r.lacto_vegetarian) === 1 ||
@@ -137,37 +157,37 @@ export async function getRecipeDetails(recipeId: string) {
     }
   }
 }
-/* -------------------------------------------------- */
-/* 🌶 FLAVORDB → TASTE THRESHOLD */
-/* -------------------------------------------------- */
+// /* -------------------------------------------------- */
+// /* 🌶 FLAVORDB → TASTE THRESHOLD */
+// /* -------------------------------------------------- */
 
-export async function getTasteThreshold(value: string) {
-  try {
-    console.log("FLAVORDB REQUEST:", value)
+// export async function getTasteThreshold(value: string) {
+//   try {
+//     console.log("FLAVORDB REQUEST:", value)
 
-    const res = await fetch(
-      `https://api.foodoscope.com/flavordb/properties/taste-threshold?values=${value}`,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${API_KEY}`,
-        },
-      }
-    )
+//     const res = await fetch(
+//       `https://api.foodoscope.com/flavordb/properties/taste-threshold?values=${value}`,
+//       {
+//         headers: {
+//           'Content-Type': 'application/json',
+//           Authorization: `Bearer ${API_KEY}`,
+//         },
+//       }
+//     )
 
-    if (!res.ok) throw new Error('FlavorDB API failed')
+//     if (!res.ok) throw new Error('FlavorDB API failed')
 
-    const data = await res.json()
+//     const data = await res.json()
 
-    console.log("FLAVORDB RAW:", data)
+//     console.log("FLAVORDB RAW:", data)
 
-    return data?.content?.[0] || null
+//     return data?.content?.[0] || null
 
-  } catch (error) {
-    console.error("FlavorDB ERROR:", error)
-    return null
-  }
-}
+//   } catch (error) {
+//     console.error("FlavorDB ERROR:", error)
+//     return null
+//   }
+// }
 
 /* -------------------------------------------------- */
 /* 🍬🧂 SEARCH BY INGREDIENTS + CATEGORIES + TITLE  */
@@ -232,16 +252,38 @@ export async function searchRecipesByIngredientCategoriesTitle(
 
     console.log('SWEET/SAVORY API RAW:', data)
 
+    /* ⚠️ This API returns FEWER fields than the master list —
+       NO Protein, Carbs, Fat, Energy, Utensils, Processes, Source */
     const normalizedRecipes = (data?.payload?.data || []).map((r: any) => ({
       id: r.Recipe_id,
       title: r.Recipe_title,
-      prepTime: Number(r.total_time) || Number(r.prep_time) || 0,
+
+      // ⭐ Timing
+      prepTime: Number(r.prep_time) || 0,
+      cookTime: Number(r.cook_time) || 0,
+      totalTime: Number(r.total_time) || 0,
+      servings: r.servings || '1',
+
+      // ⭐ Nutrition (only Calories available from this endpoint)
       calories: Number(r.Calories) || 0,
-      protein: 0,
+      energy: 0,
+      protein: 0,   // NOT returned by this API
+      carbs: 0,      // NOT returned by this API
+      fat: 0,        // NOT returned by this API
 
+      // ⭐ Geography
       region: r.Region || '',
+      subRegion: r.Sub_region || '',
+      continent: r.Continent || '',
 
+      // ⭐ Not available from this endpoint
+      utensils: '',
+      processes: '',
+      source: '',
+
+      // ⭐ Diet flags
       isVegan: Number(r.vegan) === 1,
+      isPescetarian: Number(r.pescetarian) === 1,
       isVegetarian:
         Number(r.ovo_vegetarian) === 1 ||
         Number(r.lacto_vegetarian) === 1 ||

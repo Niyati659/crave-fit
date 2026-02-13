@@ -22,6 +22,7 @@ import Image from 'next/image'
 interface FoodDetailModalProps {
   recipe: any | null
   onClose: () => void
+  onCookWithChef?: (recipe: any) => void
 }
 
 function getHealthScore(score: number) {
@@ -30,7 +31,7 @@ function getHealthScore(score: number) {
   return 'Indulgent'
 }
 
-export function FoodDetailModal({ recipe, onClose }: FoodDetailModalProps) {
+export function FoodDetailModal({ recipe, onClose, onCookWithChef }: FoodDetailModalProps) {
   if (!recipe) return null
 
   const healthScore = recipe.healthScore || 65 // ⭐ fallback
@@ -58,7 +59,7 @@ export function FoodDetailModal({ recipe, onClose }: FoodDetailModalProps) {
           </div>
 
           {/* Nutrition */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
 
             <div className="p-4 rounded-xl bg-primary/10 border border-primary/20">
               <BarChart3 className="w-5 h-5 text-primary mb-2" />
@@ -74,18 +75,42 @@ export function FoodDetailModal({ recipe, onClose }: FoodDetailModalProps) {
                 Calories
               </p>
               <p className="text-2xl font-bold">
-                {recipe.calories}
+                {Math.round(recipe.calories)}
               </p>
             </div>
 
-            <div className="p-4 rounded-xl bg-blue-50 border">
-              <p className="text-xs text-muted-foreground">
-                Protein
-              </p>
-              <p className="text-2xl font-bold">
-                {recipe.protein}g
-              </p>
-            </div>
+            {recipe.protein > 0 && (
+              <div className="p-4 rounded-xl bg-blue-50 border">
+                <p className="text-xs text-muted-foreground">
+                  Protein
+                </p>
+                <p className="text-2xl font-bold">
+                  {Math.round(recipe.protein)}g
+                </p>
+              </div>
+            )}
+
+            {recipe.carbs > 0 && (
+              <div className="p-4 rounded-xl bg-amber-50 border">
+                <p className="text-xs text-muted-foreground">
+                  Carbs
+                </p>
+                <p className="text-2xl font-bold">
+                  {Math.round(recipe.carbs)}g
+                </p>
+              </div>
+            )}
+
+            {recipe.fat > 0 && (
+              <div className="p-4 rounded-xl bg-rose-50 border">
+                <p className="text-xs text-muted-foreground">
+                  Fat
+                </p>
+                <p className="text-2xl font-bold">
+                  {Math.round(recipe.fat)}g
+                </p>
+              </div>
+            )}
 
             <div className="p-4 rounded-xl bg-green-50 border">
               <Clock className="w-5 h-5 text-green-600 mb-2" />
@@ -93,9 +118,27 @@ export function FoodDetailModal({ recipe, onClose }: FoodDetailModalProps) {
                 Prep Time
               </p>
               <p className="text-2xl font-bold">
-                {recipe.prepTime} mins
+                {recipe.totalTime || recipe.prepTime} mins
               </p>
             </div>
+
+            {recipe.servings && (
+              <div className="p-4 rounded-xl bg-purple-50 border">
+                <p className="text-xs text-muted-foreground">
+                  Servings
+                </p>
+                <p className="text-2xl font-bold">{recipe.servings}</p>
+              </div>
+            )}
+
+            {recipe.region && (
+              <div className="p-4 rounded-xl bg-teal-50 border">
+                <p className="text-xs text-muted-foreground">
+                  Region
+                </p>
+                <p className="text-lg font-bold leading-tight">{recipe.region}</p>
+              </div>
+            )}
           </div>
 
           {/* Allergen Warning */}
@@ -133,8 +176,17 @@ export function FoodDetailModal({ recipe, onClose }: FoodDetailModalProps) {
           {/* Actions */}
           <div className="flex flex-col gap-3 pt-4 border-t border-border">
 
-            <Button size="lg" className="w-full">
-              Log This Meal
+            <Button
+              size="lg"
+              className="w-full"
+              onClick={() => {
+                if (onCookWithChef) {
+                  onCookWithChef({ name: recipe.name, instructions: recipe.instructions || [] })
+                  onClose()
+                }
+              }}
+            >
+              👨‍🍳 Cook with Chef Friend
             </Button>
 
             <Button variant="outline" size="lg" className="w-full">

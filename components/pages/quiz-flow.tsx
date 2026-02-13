@@ -58,6 +58,7 @@ const quizQuestions = [
     question: 'Any dietary preferences?',
     subtitle: 'Targeting specific nutritional needs.',
     answers: [
+      { text: 'Anything', emoji: '🍽️', color: 'bg-gray-100' },
       { text: 'Vegetarian', emoji: '🥦', color: 'bg-green-100' },
       { text: 'Vegan', emoji: '🌱', color: 'bg-emerald-100' },
       { text: 'High Protein', emoji: '💪', color: 'bg-blue-100' },

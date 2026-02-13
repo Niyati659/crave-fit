@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { TrendingUp, TrendingDown, Flame, LogOut, UserCircle2, ChevronRight, Utensils, Lightbulb, Droplet, ArrowRight, AlertTriangle } from 'lucide-react'
+import { TrendingUp, TrendingDown, Flame, LogOut, UserCircle2, ChevronRight, Utensils, Lightbulb, Droplet, ArrowRight, AlertTriangle, X } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
@@ -12,6 +12,7 @@ import { generateInsights, Insight } from '@/lib/insights'
 import { RotateCw, ShoppingCart, Sparkles, Loader2 } from 'lucide-react'
 import { getRecipesByEnergy, getRecipesByCarbs, Recipe } from '@/lib/recipes'
 import { analyzeCravingPatterns, CravingInsight } from '@/lib/craving-insights'
+import { ChefFriend } from '@/components/chef-friend'
 
 interface WeeklyProgress {
   day: string
@@ -53,6 +54,8 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
   const [isRefreshingRecs, setIsRefreshingRecs] = useState(false)
   const [cravingInsight, setCravingInsight] = useState<CravingInsight | null>(null)
   const [showDeficiencyDetails, setShowDeficiencyDetails] = useState(false)
+  const [selectedRecipeName, setSelectedRecipeName] = useState<string | null>(null)
+  const [showChefFriend, setShowChefFriend] = useState(false)
 
   useEffect(() => {
     const { personal, general } = generateInsights(userData, weeklyData, waterData, allMeals)
@@ -270,6 +273,21 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
     )
   }
 
+  // Show ChefFriend page if recipe is selected
+  if (showChefFriend && selectedRecipeName) {
+    return (
+      <div className="relative">
+        <ChefFriend
+          recipe={{ name: selectedRecipeName }}
+          onClose={() => {
+            setShowChefFriend(false)
+            setSelectedRecipeName(null)
+          }}
+        />
+      </div>
+    )
+  }
+
   const hasData = weeklyData.some(d => d.calories > 0)
 
   return (
@@ -387,8 +405,8 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
               {cravingInsight && cravingInsight.pattern !== 'balanced' && cravingInsight.deficiencies.length > 0 && (
                 <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
                   <Card className={`p-0 overflow-hidden border shadow-sm ${cravingInsight.pattern === 'sweet'
-                      ? 'bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 border-pink-200'
-                      : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 border-indigo-200'
+                    ? 'bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 border-pink-200'
+                    : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 border-indigo-200'
                     }`}>
                     {/* Alert Header */}
                     <div className={`px-6 py-4 flex items-center gap-3 ${cravingInsight.pattern === 'sweet' ? 'bg-pink-100/60' : 'bg-indigo-100/60'
@@ -436,8 +454,8 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                                 <span
                                   key={j}
                                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cravingInsight.pattern === 'sweet'
-                                      ? 'bg-pink-100 text-pink-700'
-                                      : 'bg-indigo-100 text-indigo-700'
+                                    ? 'bg-pink-100 text-pink-700'
+                                    : 'bg-indigo-100 text-indigo-700'
                                     }`}
                                 >
                                   {food}
@@ -452,8 +470,8 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                       <Button
                         onClick={() => onNavigate('quiz')}
                         className={`w-full h-12 rounded-xl font-bold text-sm shadow-lg transition-all ${cravingInsight.pattern === 'sweet'
-                            ? 'bg-pink-600 hover:bg-pink-700 text-white shadow-pink-200'
-                            : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                          ? 'bg-pink-600 hover:bg-pink-700 text-white shadow-pink-200'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
                           }`}
                       >
                         <Sparkles className="w-4 h-4 mr-2" />
@@ -686,7 +704,10 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                         recommendations.map((rec, i) => (
                           <div
                             key={i}
-                            onClick={() => onNavigate('quiz')}
+                            onClick={() => {
+                              setSelectedRecipeName(rec.name)
+                              setShowChefFriend(true)
+                            }}
                             className="group bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm transition-all hover:bg-white/90 cursor-pointer flex flex-col justify-between min-h-[140px]"
                           >
                             <h4 className="font-bold text-slate-900 uppercase text-sm leading-snug line-clamp-2">
@@ -702,18 +723,18 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                               </div>
                             </div>
                           </div>
-                        ))
-                      ) : (
-                        <div className="col-span-full py-12 text-center border-2 border-dashed border-white/40 rounded-xl">
-                          <p className="text-muted-foreground font-semibold uppercase italic tracking-widest text-[10px]">Gathering more intelligence...</p>
-                        </div>
-                      )}
+                        )))
+                        : (
+                          <div className="col-span-full py-12 text-center border-2 border-dashed border-white/40 rounded-xl">
+                            <p className="text-muted-foreground font-semibold uppercase italic tracking-widest text-[10px]">Gathering more intelligence...</p>
+                          </div>
+                        )}
                     </div>
                   </div>
                 </Card>
               </div>
 
-              {/* Nutrition Breakdown */}
+              {/* Nutrition Breakdown
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
                   { label: 'Protein', avg: totalProtein, unit: 'g', color: 'from-blue-50 to-blue-100', textColor: 'text-blue-600', border: 'border-blue-200' },
@@ -726,7 +747,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     <p className="text-xs text-muted-foreground mt-3">Average daily intake</p>
                   </Card>
                 ))}
-              </div>
+              </div> */}
             </div>
           )}
 
