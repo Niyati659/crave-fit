@@ -12,6 +12,7 @@ import { generateInsights, Insight } from '@/lib/insights'
 import { RotateCw, ShoppingCart, Sparkles, Loader2 } from 'lucide-react'
 import { getRecipesByEnergy, getRecipesByCarbs, Recipe } from '@/lib/recipes'
 import { analyzeCravingPatterns, CravingInsight } from '@/lib/craving-insights'
+import { getMoodBasedBehaviorStatus } from '@/lib/quiz-mood-analysis'
 import { ChefFriend } from '@/components/chef-friend'
 
 interface WeeklyProgress {
@@ -47,8 +48,9 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
   const [personalTip, setPersonalTip] = useState<Insight | null>(null)
   const [generalTip, setGeneralTip] = useState<Insight | null>(null)
   const [behavioralStatus, setBehavioralStatus] = useState<{
-    type: 'lethargic' | 'stressed' | 'consistent' | 'normal',
-    message: string
+    type: 'lethargic' | 'stressed' | 'consistent' | 'normal' | 'tired' | 'energetic' | 'bored',
+    message: string,
+    source?: 'quiz' | 'calorie' // Track source of status
   }>({ type: 'normal', message: '' })
   const [recommendations, setRecommendations] = useState<Recipe[]>([])
   const [isRefreshingRecs, setIsRefreshingRecs] = useState(false)
@@ -190,44 +192,61 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
 
     const determineStatus = async () => {
       console.log('--- Determining Dashboard Status ---')
-      const loggedDays = weeklyData.filter(d => d.calories > 0)
-      console.log('Logged Days:', loggedDays.length)
-
-      let type: 'lethargic' | 'stressed' | 'consistent' | 'normal' = 'normal'
+      
+      let type: 'lethargic' | 'stressed' | 'consistent' | 'normal' | 'tired' | 'energetic' | 'bored' = 'normal'
       let message = ''
       let minE = 200, maxE = 500
+      let source: 'quiz' | 'calorie' = 'calorie'
 
-      if (loggedDays.length === 0) {
-        console.log('No logged data found. Showing placeholder state.')
-        type = 'consistent'
-        message = "READY TO START YOUR JOURNEY? TRACK A MEAL TO GET BRAIN INSIGHTS!"
-        minE = 300; maxE = 600
+      // ⭐ FIRST: Check for recent quiz mood response
+      const moodStatus = await getMoodBasedBehaviorStatus()
+      
+      if (moodStatus && moodStatus.source === 'quiz') {
+        // Use quiz-based recommendations!
+        type = moodStatus.type as any
+        message = moodStatus.message
+        minE = moodStatus.calorieRange.min
+        maxE = moodStatus.calorieRange.max
+        source = 'quiz'
+        
+        console.log(`✅ Using QUIZ MOOD: ${type.toUpperCase()} | Range: ${minE}-${maxE}`)
       } else {
-        const avgCal = loggedDays.reduce((sum, d) => sum + d.calories, 0) / loggedDays.length
-        const avgGoal = loggedDays.reduce((sum, d) => sum + d.goal, 0) / loggedDays.length
-        console.log('Avg Calories:', avgCal, 'Avg Goal:', avgGoal)
+        // FALLBACK: Use calorie-based analysis
+        const loggedDays = weeklyData.filter(d => d.calories > 0)
+        console.log('Logged Days:', loggedDays.length)
 
-        if (avgCal < avgGoal * 0.8) {
-          type = 'lethargic'
-          message = "I SEE YOU HAVE BEEN FEELING LETHARGIC. YOU NEED SOME ENERGY!"
-          minE = 600; maxE = 1200
-        } else if (avgCal > avgGoal * 1.2) {
-          type = 'stressed'
-          message = "SEEMS LIKE YOU ARE STRESSED AND NOT BEING ABLE TO KEEP. LET'S SUGGEST YOU LIGHT FOOD."
-          minE = 50; maxE = 300
-        } else if (loggedDays.length >= 4) {
+        if (loggedDays.length === 0) {
+          console.log('No logged data found. Showing placeholder state.')
           type = 'consistent'
-          message = "HAVE BEEN VERY CONSISTENT THEN SUGGEST DISH WITH HIGH CARBS FOR CHEAT MEAL!"
-          minE = 500; maxE = 900
+          message = "READY TO START YOUR JOURNEY? TRACK A MEAL TO GET BRAIN INSIGHTS!"
+          minE = 300; maxE = 600
         } else {
-          type = 'consistent'
-          message = "YOU'RE DOING GREAT! HOW ABOUT A HIGH-CARB REWARD TODAY?"
-          minE = 400; maxE = 800
+          const avgCal = loggedDays.reduce((sum, d) => sum + d.calories, 0) / loggedDays.length
+          const avgGoal = loggedDays.reduce((sum, d) => sum + d.goal, 0) / loggedDays.length
+          console.log('Avg Calories:', avgCal, 'Avg Goal:', avgGoal)
+
+          if (avgCal < avgGoal * 0.8) {
+            type = 'lethargic'
+            message = "I SEE YOU HAVE BEEN FEELING LETHARGIC. YOU NEED SOME ENERGY!"
+            minE = 600; maxE = 1200
+          } else if (avgCal > avgGoal * 1.2) {
+            type = 'stressed'
+            message = "SEEMS LIKE YOU ARE STRESSED AND NOT BEING ABLE TO KEEP. LET'S SUGGEST YOU LIGHT FOOD."
+            minE = 50; maxE = 300
+          } else if (loggedDays.length >= 4) {
+            type = 'consistent'
+            message = "HAVE BEEN VERY CONSISTENT THEN SUGGEST DISH WITH HIGH CARBS FOR CHEAT MEAL!"
+            minE = 500; maxE = 900
+          } else {
+            type = 'consistent'
+            message = "YOU'RE DOING GREAT! HOW ABOUT A HIGH-CARB REWARD TODAY?"
+            minE = 400; maxE = 800
+          }
         }
       }
 
       console.log('Final Calculated Status Type:', type)
-      setBehavioralStatus({ type, message })
+      setBehavioralStatus({ type, message, source })
 
       setIsRefreshingRecs(true)
       try {
@@ -236,7 +255,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
           // High carb for cheat meal
           reps = await getRecipesByCarbs(80, 150, 3)
         } else {
-          // Energy based for lethargic/stressed
+          // Energy based for lethargic/stressed/mood-based
           reps = await getRecipesByEnergy(minE, maxE, 3)
         }
         console.log('Fetched Recommendations Count:', reps.length)
@@ -674,22 +693,30 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                   <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Behavioral Analysis Report</h2>
                 </div>
 
-                <Card className={`p-8 border shadow-sm bg-gradient-to-br ${behavioralStatus.type === 'lethargic' ? 'from-amber-50 to-amber-100 border-amber-200' :
+                <Card className={`p-8 border shadow-sm bg-gradient-to-br ${
+                  behavioralStatus.type === 'lethargic' || behavioralStatus.type === 'tired' ? 'from-amber-50 to-amber-100 border-amber-200' :
                   behavioralStatus.type === 'stressed' ? 'from-sky-50 to-sky-100 border-sky-200' :
+                  behavioralStatus.type === 'bored' ? 'from-purple-50 to-purple-100 border-purple-200' :
+                  behavioralStatus.type === 'energetic' ? 'from-rose-50 to-rose-100 border-rose-200' :
                     'from-emerald-50 to-emerald-100 border-emerald-200'
                   }`}>
                   <div className="space-y-8">
                     {/* Status Header */}
                     <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
                       <div className="space-y-4">
-                        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Current Analysis</p>
-                        <h3 className={`text-2xl md:text-3xl font-black leading-[1.1] uppercase tracking-tight ${behavioralStatus.type === 'lethargic' ? 'text-amber-700' :
+                        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                          {behavioralStatus.source === 'quiz' ? '🧠 Mood-Based Analysis' : 'Current Analysis'}
+                        </p>
+                        <h3 className={`text-2xl md:text-3xl font-black leading-[1.1] uppercase tracking-tight ${
+                          behavioralStatus.type === 'lethargic' || behavioralStatus.type === 'tired' ? 'text-amber-700' :
                           behavioralStatus.type === 'stressed' ? 'text-sky-700' :
+                          behavioralStatus.type === 'bored' ? 'text-purple-700' :
+                          behavioralStatus.type === 'energetic' ? 'text-rose-700' :
                             'text-emerald-700'
                           }`}>
                           {behavioralStatus.message || "Analyzing your patterns..."}
                         </h3>
-                        <p className="text-xs text-muted-foreground">Based on your recent calorie intake and goals</p>
+                        {/* <p className="text-xs text-muted-foreground">Based on your recent calorie intake and goals</p> */}
                       </div>
                       {isRefreshingRecs && <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />}
                     </div>

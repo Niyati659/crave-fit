@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { ArrowLeft, Plus, Trash2, TrendingUp, Flame, Zap, Activity, AlertCircle, Footprints, Lightbulb } from 'lucide-react'
+import Image from 'next/image'
 import {
   DailyProgress,
   MealEntry,
@@ -791,15 +792,30 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
                   <Card key={meal.id} className="p-5 hover:shadow-md transition-shadow">
                     <div className="flex items-start justify-between gap-4">
                       <div className="flex-1">
-                        <div className="flex items-center gap-3 mb-3">
-                          <p className="font-bold text-lg text-foreground">
-                            {meal.detectedFood
-                              ? `${meal.detectedFood} (${meal.name})`
-                              : meal.name}
-                          </p>
-                          <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
-                            {meal.time}
-                          </span>
+                        <div className="flex items-center gap-4 mb-3">
+                          {meal.imageUrl && (
+                            <div className="relative w-16 h-16 rounded-xl overflow-hidden border border-border/30 flex-shrink-0">
+                              <Image
+                                src={meal.imageUrl}
+                                alt={meal.name}
+                                fill
+                                className="object-cover"
+                                unoptimized // Using external URLs from Supabase
+                              />
+                            </div>
+                          )}
+                          <div className="flex-1">
+                            <div className="flex items-center gap-3">
+                              <p className="font-bold text-lg text-foreground">
+                                {meal.detectedFood
+                                  ? `${meal.detectedFood} (${meal.name})`
+                                  : meal.name}
+                              </p>
+                              <span className="text-xs font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
+                                {meal.time}
+                              </span>
+                            </div>
+                          </div>
                         </div>
                         <div className="grid grid-cols-4 gap-4 text-sm">
                           <div>
