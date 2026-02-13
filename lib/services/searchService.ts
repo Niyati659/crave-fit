@@ -37,7 +37,7 @@ function extractTimeConstraint(query: string) {
     value = value * 60
   }
 
-  return {"maxTime": value}
+  return { "maxTime": value }
 }
 
 function extractHealthConstraints(query: string) {
@@ -79,48 +79,48 @@ function parseSearchIntent(query: string) {
 
 
 
-  
+
 export async function smartSearch(params: SmartSearchParams) {
   const intentFilters = parseSearchIntent(params.query)
-console.log("🧠 Intent filters:", intentFilters)
+  console.log("🧠 Intent filters:", intentFilters)
 
   console.log("🔍 smartSearch called with params:", params)
 
   let recipes: any[] = []
 
   try {
-      console.log("➡️ Using CUISINE endpoint")
+    console.log("➡️ Using CUISINE endpoint")
 
-      const parameters = new URLSearchParams({
-        field: 'total_time',
-        min: '0',
-        max: '1000',
-        continent: '',
-        subRegion: '',
-        page: '1',
-        page_size: '3',
-      })
+    const parameters = new URLSearchParams({
+      field: 'total_time',
+      min: '0',
+      max: '1000',
+      continent: '',
+      subRegion: '',
+      page: '1',
+      page_size: '3',
+    })
 
-      const cuisineUrl = `https://api.foodoscope.com/recipe2-api/recipes_cuisine/cuisine/${encodeURIComponent(
-        params.cuisine
-      )}?${parameters.toString()}`
+    const cuisineUrl = `https://api.foodoscope.com/recipe2-api/recipes_cuisine/cuisine/${encodeURIComponent(
+      params.cuisine
+    )}?${parameters.toString()}`
 
-      console.log("🌍 Cuisine URL:", cuisineUrl)
+    console.log("🌍 Cuisine URL:", cuisineUrl)
 
-      const response = await fetch(cuisineUrl, {
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${process.env.FOODOSCOPE_API_KEY}`,
-        },
-      })
+    const response = await fetch(cuisineUrl, {
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.FOODOSCOPE_API_KEY}`,
+      },
+    })
 
-      console.log("📡 Cuisine Status:", response.status)
+    console.log("📡 Cuisine Status:", response.status)
 
-      const data = await response.json()
-      console.log("📦 Cuisine Raw Data:", data)
+    const data = await response.json()
+    console.log("📦 Cuisine Raw Data:", data)
 
-      recipes = data.data || []
-    
+    recipes = data.data || []
+
 
     console.log("🧾 Recipes extracted:", recipes.length)
 
@@ -161,13 +161,23 @@ console.log("🧠 Intent filters:", intentFilters)
 
         const detailedRecipe = detailData.recipe
         const derivedDiet = deriveDietType(detailedRecipe)
+
+        // Simple health score: lower cal + higher protein = healthier
+        const cal = Number(detailedRecipe?.Calories || 0)
+        const prot = Number(detailedRecipe?.['Protein (g)'] || 0)
+        const calScore = Math.max(0, 100 - (cal / 8))       // lower calories → higher score
+        const protScore = Math.min(prot * 2, 40)              // more protein → bonus
+        const healthScore = Math.round(Math.min(100, Math.max(0, calScore + protScore)))
+
         const merged = {
           id: recipe._id,
           recipe_id: recipe.Recipe_id,
           recipe_name: recipe.Recipe_title,
+          image: '',  // resolved client-side by dish-image-service
+          healthScore,
           region: recipe.Region,
-          calories: Number(detailedRecipe?.Calories || 0),
-          protein: Number(detailedRecipe?.['Protein (g)'] || 0),
+          calories: cal,
+          protein: prot,
           carbs: Number(detailedRecipe?.['Carbohydrate, by difference (g)'] || 0),
           fat: Number(detailedRecipe?.['Total lipid (fat) (g)'] || 0),
           cookTime: recipe.cook_time,
@@ -186,41 +196,41 @@ console.log("🧠 Intent filters:", intentFilters)
     console.log("🎉 Final detailedRecipes array:", detailedRecipes)
 
     // 🧠 Apply filtering only if query contains constraints
-if (!params.query || params.query.trim() === "") {
-  console.log("➡️ No query provided. Returning cuisine results only.")
-  return detailedRecipes
-}
+    if (!params.query || params.query.trim() === "") {
+      console.log("➡️ No query provided. Returning cuisine results only.")
+      return detailedRecipes
+    }
 
-if (Object.keys(intentFilters).length === 0) {
-  console.log("➡️ Query has no structured constraints. Returning cuisine results.")
-  return detailedRecipes
-}
+    if (Object.keys(intentFilters).length === 0) {
+      console.log("➡️ Query has no structured constraints. Returning cuisine results.")
+      return detailedRecipes
+    }
 
-console.log("🔎 Applying intent-based filtering...")
+    console.log("🔎 Applying intent-based filtering...")
 
-let filtered = detailedRecipes
+    let filtered = detailedRecipes
 
-if (intentFilters.maxTime) {
-  filtered = filtered.filter(
-    (r) => Number(r.cookTime || 0) <= intentFilters.maxTime
-  )
-}
+    if (intentFilters.maxTime) {
+      filtered = filtered.filter(
+        (r) => Number(r.cookTime || 0) <= intentFilters.maxTime
+      )
+    }
 
-if (intentFilters.maxCalories) {
-  filtered = filtered.filter(
-    (r) => r.calories <= intentFilters.maxCalories
-  )
-}
+    if (intentFilters.maxCalories) {
+      filtered = filtered.filter(
+        (r) => r.calories <= intentFilters.maxCalories
+      )
+    }
 
-if (intentFilters.minProtein) {
-  filtered = filtered.filter(
-    (r) => r.protein >= intentFilters.minProtein
-  )
-}
+    if (intentFilters.minProtein) {
+      filtered = filtered.filter(
+        (r) => r.protein >= intentFilters.minProtein
+      )
+    }
 
-console.log("✅ Filtered results:", filtered)
+    console.log("✅ Filtered results:", filtered)
 
-return filtered
+    return filtered
 
 
   } catch (error) {

@@ -1,7 +1,7 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Utensils, LayoutDashboard, Search, UtensilsCrossed, LogIn, LogOut, Sparkles, UserCircle } from 'lucide-react'
+import { Utensils, LayoutDashboard, Search, UtensilsCrossed, LogIn, LogOut, Sparkles, UserCircle, ChefHat } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
@@ -42,62 +42,62 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
                 </div>
 
                 {/* Navigation */}
-                <nav className="flex items-center gap-1 sm:gap-4">
+                <nav className="flex items-center gap-1 sm:gap-2">
                     <Button
                         variant={currentView === 'dashboard' ? 'secondary' : 'ghost'}
                         size="sm"
                         onClick={() => onNavigate('dashboard')}
-                        className="flex items-center gap-2 font-semibold"
+                        className="flex items-center gap-2 font-semibold px-2 sm:px-3"
                     >
                         <LayoutDashboard className="w-4 h-4" />
-                        <span className="hidden md:inline">Dashboard</span>
+                        <span className="hidden lg:inline">Dashboard</span>
                     </Button>
 
                     <Button
                         variant={currentView === 'quiz' ? 'secondary' : 'ghost'}
                         size="sm"
                         onClick={() => onNavigate('quiz')}
-                        className="flex items-center gap-2 font-semibold text-primary"
+                        className="flex items-center gap-2 font-semibold text-primary px-2 sm:px-3"
                     >
                         <Sparkles className="w-4 h-4" />
-                        <span className="hidden md:inline">Quiz</span>
+                        <span className="hidden lg:inline">Quiz</span>
                     </Button>
 
                     <Button
                         variant={currentView === 'browse' ? 'secondary' : 'ghost'}
                         size="sm"
                         onClick={() => onNavigate('browse')}
-                        className="flex items-center gap-2 font-semibold"
+                        className="flex items-center gap-2 font-semibold px-2 sm:px-3"
                     >
                         <Search className="w-4 h-4" />
-                        <span className="hidden md:inline">Foods</span>
+                        <span className="hidden lg:inline">Foods</span>
                     </Button>
 
                     <Button
                         variant={currentView === 'meal-tracker' ? 'secondary' : 'ghost'}
                         size="sm"
                         onClick={() => onNavigate('meal-tracker')}
-                        className="flex items-center gap-2 font-semibold"
+                        className="flex items-center gap-2 font-semibold px-2 sm:px-3"
                     >
                         <UtensilsCrossed className="w-4 h-4" />
-                        <span className="hidden md:inline">Tracker</span>
+                        <span className="hidden lg:inline">Tracker</span>
                     </Button>
 
                     <Button
                         variant={currentView === 'chef' ? 'secondary' : 'ghost'}
                         size="sm"
                         onClick={() => onNavigate('chef')}
-                        className="flex items-center gap-2 font-semibold"
+                        className="flex items-center gap-2 font-semibold px-2 sm:px-3"
                     >
-                        <span className="text-base" style={{ filter: 'drop-shadow(0 0 5px #fb923c) saturate(2)' }}>👻</span>
-                        <span className="hidden md:inline">Chef Buddy</span>
+                        <ChefHat className="w-4 h-4 text-foreground" />
+                        <span className="hidden lg:inline">Chef Buddy</span>
                     </Button>
 
                     <Button
                         variant={currentView === 'profile' ? 'secondary' : 'ghost'}
                         size="sm"
                         onClick={() => onNavigate('profile')}
-                        className="flex items-center gap-2 font-semibold p-1 pr-3 rounded-full"
+                        className="flex items-center gap-2 font-semibold p-1 sm:pr-3 rounded-full"
                     >
                         <div className="w-7 h-7 rounded-full overflow-hidden bg-muted flex items-center justify-center border border-border/50">
                             {userData?.avatar_url ? (
@@ -106,7 +106,7 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
                                 <UserCircle className="w-5 h-5 text-muted-foreground" />
                             )}
                         </div>
-                        <span className="hidden md:inline">{userData?.full_name?.split(' ')[0] || 'Profile'}</span>
+                        <span className="hidden lg:inline">{userData?.full_name?.split(' ')[0] || 'Profile'}</span>
                     </Button>
                 </nav>
 

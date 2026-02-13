@@ -3,13 +3,16 @@
 import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { TrendingUp, TrendingDown, Flame, LogOut, UserCircle2, ChevronRight, Utensils, Lightbulb, Droplet, ArrowRight } from 'lucide-react'
+import { TrendingUp, TrendingDown, Flame, LogOut, UserCircle2, ChevronRight, Utensils, Lightbulb, Droplet, ArrowRight, AlertTriangle, X } from 'lucide-react'
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell } from 'recharts'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import { UtensilLoader } from '@/components/ui/utensil-loader'
 import { generateInsights, Insight } from '@/lib/insights'
-import { RotateCw } from 'lucide-react'
+import { RotateCw, ShoppingCart, Sparkles, Loader2 } from 'lucide-react'
+import { getRecipesByEnergy, getRecipesByCarbs, Recipe } from '@/lib/recipes'
+import { analyzeCravingPatterns, CravingInsight } from '@/lib/craving-insights'
+import { ChefFriend } from '@/components/chef-friend'
 
 interface WeeklyProgress {
   day: string
@@ -43,6 +46,16 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
   const [isLoading, setIsLoading] = useState(true)
   const [personalTip, setPersonalTip] = useState<Insight | null>(null)
   const [generalTip, setGeneralTip] = useState<Insight | null>(null)
+  const [behavioralStatus, setBehavioralStatus] = useState<{
+    type: 'lethargic' | 'stressed' | 'consistent' | 'normal',
+    message: string
+  }>({ type: 'normal', message: '' })
+  const [recommendations, setRecommendations] = useState<Recipe[]>([])
+  const [isRefreshingRecs, setIsRefreshingRecs] = useState(false)
+  const [cravingInsight, setCravingInsight] = useState<CravingInsight | null>(null)
+  const [showDeficiencyDetails, setShowDeficiencyDetails] = useState(false)
+  const [selectedRecipeName, setSelectedRecipeName] = useState<string | null>(null)
+  const [showChefFriend, setShowChefFriend] = useState(false)
 
   useEffect(() => {
     const { personal, general } = generateInsights(userData, weeklyData, waterData, allMeals)
@@ -163,6 +176,80 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
     checkUserAndProfile()
   }, [router])
 
+  /* ⭐ Fetch craving pattern insights */
+  useEffect(() => {
+    const fetchCravingInsights = async () => {
+      const insight = await analyzeCravingPatterns()
+      setCravingInsight(insight)
+    }
+    fetchCravingInsights()
+  }, [])
+
+  useEffect(() => {
+    if (isLoading || weeklyData.length === 0) return
+
+    const determineStatus = async () => {
+      console.log('--- Determining Dashboard Status ---')
+      const loggedDays = weeklyData.filter(d => d.calories > 0)
+      console.log('Logged Days:', loggedDays.length)
+
+      let type: 'lethargic' | 'stressed' | 'consistent' | 'normal' = 'normal'
+      let message = ''
+      let minE = 200, maxE = 500
+
+      if (loggedDays.length === 0) {
+        console.log('No logged data found. Showing placeholder state.')
+        type = 'consistent'
+        message = "READY TO START YOUR JOURNEY? TRACK A MEAL TO GET BRAIN INSIGHTS!"
+        minE = 300; maxE = 600
+      } else {
+        const avgCal = loggedDays.reduce((sum, d) => sum + d.calories, 0) / loggedDays.length
+        const avgGoal = loggedDays.reduce((sum, d) => sum + d.goal, 0) / loggedDays.length
+        console.log('Avg Calories:', avgCal, 'Avg Goal:', avgGoal)
+
+        if (avgCal < avgGoal * 0.8) {
+          type = 'lethargic'
+          message = "I SEE YOU HAVE BEEN FEELING LETHARGIC. YOU NEED SOME ENERGY!"
+          minE = 600; maxE = 1200
+        } else if (avgCal > avgGoal * 1.2) {
+          type = 'stressed'
+          message = "SEEMS LIKE YOU ARE STRESSED AND NOT BEING ABLE TO KEEP. LET'S SUGGEST YOU LIGHT FOOD."
+          minE = 50; maxE = 300
+        } else if (loggedDays.length >= 4) {
+          type = 'consistent'
+          message = "HAVE BEEN VERY CONSISTENT THEN SUGGEST DISH WITH HIGH CARBS FOR CHEAT MEAL!"
+          minE = 500; maxE = 900
+        } else {
+          type = 'consistent'
+          message = "YOU'RE DOING GREAT! HOW ABOUT A HIGH-CARB REWARD TODAY?"
+          minE = 400; maxE = 800
+        }
+      }
+
+      console.log('Final Calculated Status Type:', type)
+      setBehavioralStatus({ type, message })
+
+      setIsRefreshingRecs(true)
+      try {
+        let reps: Recipe[] = []
+        if (type === 'consistent') {
+          // High carb for cheat meal
+          reps = await getRecipesByCarbs(80, 150, 3)
+        } else {
+          // Energy based for lethargic/stressed
+          reps = await getRecipesByEnergy(minE, maxE, 3)
+        }
+        console.log('Fetched Recommendations Count:', reps.length)
+        setRecommendations(reps)
+      } catch (err) {
+        console.error('Failed to fetch energy/carb recommendations:', err)
+      } finally {
+        setIsRefreshingRecs(false)
+      }
+    }
+    determineStatus()
+  }, [isLoading, weeklyData])
+
   const handleLogout = async () => {
     await supabase.auth.signOut()
     router.push('/')
@@ -182,6 +269,21 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-primary/5">
         <UtensilLoader />
+      </div>
+    )
+  }
+
+  // Show ChefFriend page if recipe is selected
+  if (showChefFriend && selectedRecipeName) {
+    return (
+      <div className="relative">
+        <ChefFriend
+          recipe={{ name: selectedRecipeName }}
+          onClose={() => {
+            setShowChefFriend(false)
+            setSelectedRecipeName(null)
+          }}
+        />
       </div>
     )
   }
@@ -299,6 +401,88 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                 </div>
               </div>
 
+              {/* 🧠 Craving Pattern / Nutrient Deficiency Alert */}
+              {cravingInsight && cravingInsight.pattern !== 'balanced' && cravingInsight.deficiencies.length > 0 && (
+                <div className="animate-in fade-in slide-in-from-bottom-4 duration-700">
+                  <Card className={`p-0 overflow-hidden border shadow-sm ${cravingInsight.pattern === 'sweet'
+                    ? 'bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 border-pink-200'
+                    : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 border-indigo-200'
+                    }`}>
+                    {/* Alert Header */}
+                    <div className={`px-6 py-4 flex items-center gap-3 ${cravingInsight.pattern === 'sweet' ? 'bg-pink-100/60' : 'bg-indigo-100/60'
+                      }`}>
+                      <div className={`p-2 rounded-full ${cravingInsight.pattern === 'sweet' ? 'bg-pink-200' : 'bg-indigo-200'
+                        }`}>
+                        <AlertTriangle className={`w-5 h-5 ${cravingInsight.pattern === 'sweet' ? 'text-pink-700' : 'text-indigo-700'
+                          }`} />
+                      </div>
+                      <div className="flex-1">
+                        <p className={`text-xs font-black uppercase tracking-widest ${cravingInsight.pattern === 'sweet' ? 'text-pink-600' : 'text-indigo-600'
+                          }`}>Craving Pattern Detected</p>
+                        <p className="text-sm font-medium text-slate-700 mt-0.5">
+                          {cravingInsight.message}
+                        </p>
+                      </div>
+                      <div className={`text-3xl font-black ${cravingInsight.pattern === 'sweet' ? 'text-pink-600' : 'text-indigo-600'
+                        }`}>
+                        {cravingInsight.percentage}%
+                      </div>
+                    </div>
+
+                    {/* Deficiency Cards */}
+                    <div className="p-6 space-y-4">
+                      <p className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+                        Possible Nutrient Gaps & Foods to Replenish
+                      </p>
+
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        {cravingInsight.deficiencies.map((def, i) => (
+                          <div
+                            key={i}
+                            className="bg-white/70 backdrop-blur-sm rounded-xl p-4 border border-white/50 shadow-sm hover:shadow-md transition-all hover:scale-[1.02] cursor-default"
+                          >
+                            <div className="flex items-center gap-2 mb-2">
+                              <span className="text-2xl">{def.emoji}</span>
+                              <h4 className={`text-sm font-bold ${cravingInsight.pattern === 'sweet' ? 'text-pink-700' : 'text-indigo-700'
+                                }`}>{def.nutrient}</h4>
+                            </div>
+                            <p className="text-xs text-slate-600 mb-3 leading-relaxed">
+                              {def.description}
+                            </p>
+                            <div className="flex flex-wrap gap-1.5">
+                              {def.foods.map((food, j) => (
+                                <span
+                                  key={j}
+                                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${cravingInsight.pattern === 'sweet'
+                                    ? 'bg-pink-100 text-pink-700'
+                                    : 'bg-indigo-100 text-indigo-700'
+                                    }`}
+                                >
+                                  {food}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* CTA */}
+                      <Button
+                        onClick={() => onNavigate('quiz')}
+                        className={`w-full h-12 rounded-xl font-bold text-sm shadow-lg transition-all ${cravingInsight.pattern === 'sweet'
+                          ? 'bg-pink-600 hover:bg-pink-700 text-white shadow-pink-200'
+                          : 'bg-indigo-600 hover:bg-indigo-700 text-white shadow-indigo-200'
+                          }`}
+                      >
+                        <Sparkles className="w-4 h-4 mr-2" />
+                        Find Foods to Replenish These Nutrients
+                        <ArrowRight className="w-4 h-4 ml-2" />
+                      </Button>
+                    </div>
+                  </Card>
+                </div>
+              )}
+
               {/* Top Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Current Weight */}
@@ -328,7 +512,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Current Streak</p>
                       <div className="flex items-baseline gap-2">
-                        <p className="text-4xl font-bold text-blue-600">{weeklyData.filter(d => d && d.calories > 0).length}</p>
+                        <p className="text-4xl font-medium text-blue-600">{weeklyData.filter(d => d && d.calories > 0).length}</p>
                         <span className="text-sm text-muted-foreground">days tracked</span>
                       </div>
                     </div>
@@ -344,7 +528,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Avg Hydration</p>
                       <div className="flex items-baseline gap-2">
-                        <p className="text-4xl font-bold text-sky-500">
+                        <p className="text-4xl font-medium text-sky-500">
                           {waterData.length > 0
                             ? Math.round(waterData.reduce((sum, d) => sum + d.ml, 0) / (waterData.filter(d => d.ml > 0).length || 1))
                             : 0}
@@ -365,7 +549,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                 <Card className="p-6 bg-white border-border shadow-sm rounded-xl overflow-hidden group">
                   <div className="flex items-center justify-between mb-8">
                     <div>
-                      <h3 className="text-l font-black text-slate-700 uppercase tracking-tight">Water Intake</h3>
+                      <h3 className="text-l font-semibold text-slate-700 uppercase tracking-tight">Water Intake</h3>
                       <p className="text-xs text-muted-foreground font-bold">Past 7 Days</p>
                     </div>
                     <div className="p-2.5 bg-sky-50 rounded-xl border border-sky-100 text-sky-600 transition-colors">
@@ -424,7 +608,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                 <Card className="p-6 bg-white border-border shadow-sm rounded-xl overflow-hidden group">
                   <div className="flex items-center justify-between mb-8">
                     <div>
-                      <h3 className="text-l font-black text-slate-700 uppercase tracking-tight">Calories Weekly</h3>
+                      <h3 className="text-l font-semibold text-slate-700 uppercase tracking-tight">Calories Weekly</h3>
                       <p className="text-xs text-muted-foreground font-bold">Goal vs Actual</p>
                     </div>
                     <div className="p-2.5 bg-emerald-50 rounded-xl border border-emerald-100 text-emerald-600 transition-colors">
@@ -481,7 +665,76 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                 </Card>
               </div>
 
-              {/* Nutrition Breakdown */}
+              {/* Behavior Analysis Report - UNIFIED WITH MACRO CARD STYLE */}
+              <div className="space-y-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-slate-100 rounded-lg">
+                    <Utensils className="w-4 h-4 text-slate-500" />
+                  </div>
+                  <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">Behavioral Analysis Report</h2>
+                </div>
+
+                <Card className={`p-8 border shadow-sm bg-gradient-to-br ${behavioralStatus.type === 'lethargic' ? 'from-amber-50 to-amber-100 border-amber-200' :
+                  behavioralStatus.type === 'stressed' ? 'from-sky-50 to-sky-100 border-sky-200' :
+                    'from-emerald-50 to-emerald-100 border-emerald-200'
+                  }`}>
+                  <div className="space-y-8">
+                    {/* Status Header */}
+                    <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+                      <div className="space-y-4">
+                        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Current Analysis</p>
+                        <h3 className={`text-2xl md:text-3xl font-black leading-[1.1] uppercase tracking-tight ${behavioralStatus.type === 'lethargic' ? 'text-amber-700' :
+                          behavioralStatus.type === 'stressed' ? 'text-sky-700' :
+                            'text-emerald-700'
+                          }`}>
+                          {behavioralStatus.message || "Analyzing your patterns..."}
+                        </h3>
+                        <p className="text-xs text-muted-foreground">Based on your recent calorie intake and goals</p>
+                      </div>
+                      {isRefreshingRecs && <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />}
+                    </div>
+
+                    {/* Recommendations Grid */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                      {isRefreshingRecs ? (
+                        [1, 2, 3].map(i => (
+                          <div key={i} className="h-32 rounded-xl bg-white/50 animate-pulse border border-white/20" />
+                        ))
+                      ) : recommendations.length > 0 ? (
+                        recommendations.map((rec, i) => (
+                          <div
+                            key={i}
+                            onClick={() => {
+                              setSelectedRecipeName(rec.name)
+                              setShowChefFriend(true)
+                            }}
+                            className="group bg-white/60 p-6 rounded-xl border border-white/40 shadow-sm transition-all hover:bg-white/90 cursor-pointer flex flex-col justify-between min-h-[140px]"
+                          >
+                            <h4 className="font-bold text-slate-900 uppercase text-sm leading-snug line-clamp-2">
+                              {rec.name}
+                            </h4>
+
+                            <div className="flex items-center justify-between mt-4">
+                              <span className="text-xs font-bold text-muted-foreground tracking-widest uppercase">
+                                {rec.calories} kcal
+                              </span>
+                              <div className="w-6 h-6 rounded-full bg-white border border-slate-100 flex items-center justify-center group-hover:bg-slate-900 group-hover:text-white transition-all">
+                                <ArrowRight className="w-3 h-3" />
+                              </div>
+                            </div>
+                          </div>
+                        )))
+                        : (
+                          <div className="col-span-full py-12 text-center border-2 border-dashed border-white/40 rounded-xl">
+                            <p className="text-muted-foreground font-semibold uppercase italic tracking-widest text-[10px]">Gathering more intelligence...</p>
+                          </div>
+                        )}
+                    </div>
+                  </div>
+                </Card>
+              </div>
+
+              {/* Nutrition Breakdown
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
                   { label: 'Protein', avg: totalProtein, unit: 'g', color: 'from-blue-50 to-blue-100', textColor: 'text-blue-600', border: 'border-blue-200' },
@@ -494,7 +747,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     <p className="text-xs text-muted-foreground mt-3">Average daily intake</p>
                   </Card>
                 ))}
-              </div>
+              </div> */}
             </div>
           )}
 

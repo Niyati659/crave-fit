@@ -26,7 +26,7 @@ export interface Recipe {
 }
 
 const FOODOSCOPE_BASE_URL = 'https://api.foodoscope.com/recipe2-api'
-const API_KEY = process.env.NEXT_PUBLIC_FOODOSCOPE_API_KEY
+const API_KEY = process.env.NEXT_PUBLIC_FOODOSCOPE_KEY
 
 export async function getRecipeByTitle(title: string): Promise<Recipe | null> {
     try {
@@ -119,5 +119,74 @@ export async function getRecipeByTitle(title: string): Promise<Recipe | null> {
     } catch (error) {
         console.error('Error in getRecipeByTitle:', error)
         return null
+    }
+}
+
+export async function getRecipesByEnergy(minEnergy: number, maxEnergy: number, limit: number = 3): Promise<Recipe[]> {
+    try {
+        const url = `${FOODOSCOPE_BASE_URL}/byenergy/energy?minEnergy=${minEnergy}&maxEnergy=${maxEnergy}&page=1&limit=${limit}`
+        const res = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        const data = await res.json()
+
+        // Based on user snippet, the key is 'recipes' for the energy endpoint
+        const recipeList = data.recipes || data.data || []
+
+        if (recipeList.length === 0) {
+            return []
+        }
+
+        return recipeList.map((recipeInfo: any) => ({
+            recipe_id: recipeInfo.Recipe_id,
+            name: recipeInfo.Recipe_title,
+            calories: parseFloat(recipeInfo['Energy (kcal)']) || parseFloat(recipeInfo.Calories) || 0,
+            protein: 0,
+            carbs: 0,
+            fat: 0,
+            instructions: [],
+            ingredients: []
+        }))
+    } catch (error) {
+        console.error('Error in getRecipesByEnergy:', error)
+        return []
+    }
+}
+
+export async function getRecipesByCarbs(minCarbs: number, maxCarbs: number, limit: number = 3): Promise<Recipe[]> {
+    try {
+        // endpoint according to user pattern: /bycarb/carb?minCarb={minCarb}&maxCarb={maxCarb}
+        const url = `${FOODOSCOPE_BASE_URL}/bycarb/carb?minCarb=${minCarbs}&maxCarb=${maxCarbs}&page=1&limit=${limit}`
+        const res = await fetch(url, {
+            headers: {
+                'Authorization': `Bearer ${API_KEY}`,
+                'Content-Type': 'application/json'
+            }
+        })
+        const data = await res.json()
+
+        // Based on user snippet, the key is 'data' for the carb endpoint
+        const recipeList = data.data || data.recipes || []
+
+        if (recipeList.length === 0) {
+            return []
+        }
+
+        return recipeList.map((recipeInfo: any) => ({
+            recipe_id: recipeInfo.Recipe_id,
+            name: recipeInfo.Recipe_title,
+            calories: parseFloat(recipeInfo.Calories) || parseFloat(recipeInfo['Energy (kcal)']) || 0,
+            protein: 0,
+            carbs: parseFloat(recipeInfo['Carbohydrate, by difference (g)']) || 0,
+            fat: 0,
+            instructions: [],
+            ingredients: []
+        }))
+    } catch (error) {
+        console.error('Error in getRecipesByCarbs:', error)
+        return []
     }
 }

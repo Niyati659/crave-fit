@@ -1,19 +1,24 @@
 'use client'
 
-let RECIPES_CACHE:any[] = []
-let DETAILS_CACHE:any = {}
-let INSTRUCTIONS_CACHE:any = {}
+let RECIPES_CACHE: any[] = []
+let DETAILS_CACHE: any = {}
+let INSTRUCTIONS_CACHE: any = {}
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { ArrowLeft, Zap, Leaf } from 'lucide-react'
+import Image from 'next/image'
 
 import {
   getRecipesInfo,
   getRecipeInstructions,
   getRecipeDetails,
+  searchRecipesByIngredientCategoriesTitle,
+
 } from '@/lib/api'
 
+import { getDishImage } from '@/lib/dish-image-service'
+import { supabase } from '@/lib/supabase'
 import { FoodDetailModal } from '@/components/recommendationfood-detail-modal'
 
 interface RecommendationsScreenProps {
@@ -37,48 +42,49 @@ export function RecommendationsScreen({
   const [recipes, setRecipes] = useState<any[]>([])
   const [selectedRecipe, setSelectedRecipe] = useState<any | null>(null)
   const [loading, setLoading] = useState(true)
+  const [recipeImages, setRecipeImages] = useState<Record<string, string>>({})
 
   /* -------------------------------------------------- */
   /* ⭐ Slider → Calories Engine */
   /* -------------------------------------------------- */
 
- const getSliderCaloriesLimit = () => {
+  const getSliderCaloriesLimit = () => {
 
-  const MIN_LIMIT = 250   // STRICT healthy 🥗🔥
-  const MAX_LIMIT = 900
+    const MIN_LIMIT = 250   // STRICT healthy 🥗🔥
+    const MAX_LIMIT = 900
 
-  const ratio = healthPreference / 100
+    const ratio = healthPreference / 100
 
-  return Math.round(
-    MAX_LIMIT - (ratio * (MAX_LIMIT - MIN_LIMIT))
-  )
- }
+    return Math.round(
+      MAX_LIMIT - (ratio * (MAX_LIMIT - MIN_LIMIT))
+    )
+  }
 
 
   /* -------------------------------------------------- */
   /* ⭐ Filtering Logic */
   /* -------------------------------------------------- */
-  const dietMatch = (recipe:any) => {
+  const dietMatch = (recipe: any) => {
 
-  if (!quizMeta.dietFilter) return true
+    if (!quizMeta.dietFilter) return true
 
-  switch (quizMeta.dietFilter) {
+    switch (quizMeta.dietFilter) {
 
-    case 'vegan':
-      return recipe.isVegan
+      case 'vegan':
+        return recipe.isVegan
 
-    case 'vegetarian':
-      return recipe.isVegetarian
+      case 'vegetarian':
+        return recipe.isVegetarian
 
-    case 'high protein':
-      return recipe.protein >= 25
+      case 'high protein':
+        return recipe.protein >= 25
 
-    default:
-      return true
+      default:
+        return true
+    }
   }
-}
 
-  const applyQuizLogic = (recipe:any) => {
+  const applyQuizLogic = (recipe: any) => {
 
     const sliderLimit = getSliderCaloriesLimit()
 
@@ -93,30 +99,30 @@ export function RecommendationsScreen({
       recipe.prepTime <= (quizMeta.maxPrepTime || 999)
 
     return withinCalories &&
-       withinPrepTime &&
-       dietMatch(recipe)
+      withinPrepTime &&
+      dietMatch(recipe)
 
   }
 
   /* -------------------------------------------------- */
   /* ⭐ Ranking Engine */
   /* -------------------------------------------------- */
-  const parseTasteProfile = (tasteText:string) => {
+  const parseTasteProfile = (tasteText: string) => {
 
-  if (!tasteText) return {}
+    if (!tasteText) return {}
 
-  const text = tasteText.toLowerCase()
+    const text = tasteText.toLowerCase()
 
-  return {
-    sweet: text.includes('sweet'),
-    spicy: text.includes('spicy'),
-    salty: text.includes('salty'),
-    bitter: text.includes('bitter'),
-    umami: text.includes('umami'),
+    return {
+      sweet: text.includes('sweet'),
+      spicy: text.includes('spicy'),
+      salty: text.includes('salty'),
+      bitter: text.includes('bitter'),
+      umami: text.includes('umami'),
+    }
   }
-}
 
-  const scoreRecipe = (recipe:any) => {
+  const scoreRecipe = (recipe: any) => {
 
     const proteinTarget = quizMeta.proteinTarget || 25
 
@@ -138,31 +144,33 @@ export function RecommendationsScreen({
   /* -------------------------------------------------- */
   /* ⭐ Fetch Logic (Cached) */
   /* -------------------------------------------------- */
-  const getRelaxedRecipes = (recipes:any[]) => {
+  const getRelaxedRecipes = (recipes: any[]) => {
 
-  const sliderLimit = getSliderCaloriesLimit()
+    const sliderLimit = getSliderCaloriesLimit()
 
-  /* ✅ STRICT FILTER */
-  let strict = recipes.filter(recipe =>
-    recipe.calories >= quizMeta.calorieRange.min &&
-    recipe.calories <= Math.min(quizMeta.calorieRange.max, sliderLimit) &&
-    recipe.prepTime <= (quizMeta.maxPrepTime || 999) &&
-    dietMatch(recipe)
-  )
+    /* ✅ STRICT FILTER (calories=0 means unknown, let them through) */
+    let strict = recipes.filter(recipe =>
+      (recipe.calories === 0 || (
+        recipe.calories >= quizMeta.calorieRange.min &&
+        recipe.calories <= Math.min(quizMeta.calorieRange.max, sliderLimit)
+      )) &&
+      recipe.prepTime <= (quizMeta.maxPrepTime || 999) &&
+      dietMatch(recipe)
+    )
 
-  if (strict.length >= 10) return strict
+    if (strict.length >= 10) return strict
 
-  console.log("RELAXING CONSTRAINTS 😌")
+    console.log("RELAXING CONSTRAINTS 😌")
 
-  /* ✅ RELAXED FILTER */
-  let relaxed = recipes.filter(recipe =>
-    recipe.calories <= sliderLimit + 150 &&
-    recipe.prepTime <= (quizMeta.maxPrepTime || 999) + 15 &&
-    dietMatch(recipe)
-  )
+    /* ✅ RELAXED FILTER */
+    let relaxed = recipes.filter(recipe =>
+      (recipe.calories === 0 || recipe.calories <= sliderLimit + 150) &&
+      recipe.prepTime <= (quizMeta.maxPrepTime || 999) + 15 &&
+      dietMatch(recipe)
+    )
 
-  return relaxed
-}
+    return relaxed
+  }
 
   const fetchRecipes = useCallback(async () => {
 
@@ -173,35 +181,108 @@ export function RecommendationsScreen({
 
       const MIN_RECIPES = 10
 
-if (RECIPES_CACHE.length === 0) {
+      if (RECIPES_CACHE.length === 0) {
 
-  console.log("LOADING CACHE...")
+        console.log("LOADING CACHE...")
 
-  let combined:any[] = []
+        let combined: any[] = []
 
-  for (let page = 1; page <= 5; page++) {
+        for (let page = 1; page <= 5; page++) {
 
-    console.log("FETCH PAGE:", page)
+          console.log("FETCH PAGE:", page)
 
-    const data = await getRecipesInfo(page, 100)
+          const data = await getRecipesInfo(page, 100)
 
-    combined = [...combined, ...(data.recipes || [])]
+          combined = [...combined, ...(data.recipes || [])]
 
-    /* ⭐ POLITE API DELAY */
-    await new Promise(r => setTimeout(r, 300))
-  }
+          /* ⭐ POLITE API DELAY — 25 req/min limit = ~2.5s per call */
+          await new Promise(r => setTimeout(r, 3000))
+        }
 
-  RECIPES_CACHE = combined
+        RECIPES_CACHE = combined
 
-  console.log("CACHE SIZE:", RECIPES_CACHE.length)
-}
+        console.log("CACHE SIZE:", RECIPES_CACHE.length)
+      }
 
 
       else {
         console.log("USING CACHE 😌")
       }
 
-      const filtered = getRelaxedRecipes(RECIPES_CACHE)
+      /* -------------------------------------------------- */
+      /* 🍬🧂 SWEET / SAVORY TARGETED API                  */
+      /* -------------------------------------------------- */
+
+      const SWEET_INGREDIENTS = ['cinnamon', 'purpose flour', 'milk', 'vanilla']
+      const SAVORY_INGREDIENTS = ['onion', 'soy sauce', 'garlic', 'garlic clove']
+      const SWEET_CATEGORIES = ['Bakery', 'Additive-Yeast', 'Beverage', 'Beverage Caffeinated', 'Berry', 'Additive-Sugar']
+
+      const hasTasteBias = quizMeta?.sweetBias || quizMeta?.savoryBias
+      let targetedRecipes: any[] = []
+
+      if (quizMeta?.sweetBias) {
+        console.log('🍬 SWEET BIAS — fetching targeted recipes')
+        const sweetData = await searchRecipesByIngredientCategoriesTitle({
+          includeIngredients: SWEET_INGREDIENTS,
+          excludeIngredients: SAVORY_INGREDIENTS,
+          includeCategories: SWEET_CATEGORIES,
+          excludeCategories: [],
+          page: 1,
+          limit: 10,
+        })
+        targetedRecipes = [...(sweetData.recipes || [])]
+      } else if (quizMeta?.savoryBias) {
+        console.log('🧂 SAVORY BIAS — fetching targeted recipes')
+        const savoryData = await searchRecipesByIngredientCategoriesTitle({
+          includeIngredients: SAVORY_INGREDIENTS,
+          excludeIngredients: SWEET_INGREDIENTS,
+          excludeCategories: SWEET_CATEGORIES,
+          includeCategories: [],
+          page: 1,
+          limit: 10,
+        })
+        targetedRecipes = [...(savoryData.recipes || [])]
+      }
+
+      console.log('TARGETED RECIPES COUNT:', targetedRecipes.length)
+
+      /* ⭐ Cross-reference targeted recipes with master list
+         to fill in protein/carbs/fat that the ingredient API doesn't return */
+      if (targetedRecipes.length > 0 && RECIPES_CACHE.length > 0) {
+        const cacheMap = new Map(RECIPES_CACHE.map((r: any) => [r.id, r]))
+        targetedRecipes = targetedRecipes.map((recipe: any) => {
+          const cached = cacheMap.get(recipe.id)
+          if (cached) {
+            return {
+              ...recipe,
+              protein: cached.protein || recipe.protein,
+              carbs: cached.carbs || recipe.carbs,
+              fat: cached.fat || recipe.fat,
+              energy: cached.energy || recipe.energy,
+              prepTime: cached.prepTime || recipe.prepTime,
+              cookTime: cached.cookTime || recipe.cookTime,
+              utensils: cached.utensils || recipe.utensils,
+              processes: cached.processes || recipe.processes,
+            }
+          }
+          return recipe
+        })
+        console.log('✅ Cross-referenced', targetedRecipes.filter((r: any) => r.protein > 0).length, 'recipes with master list nutrition')
+      }
+
+      /* ⭐ If we have targeted results, use ONLY those.
+         General pool has no ingredient data so random
+         savory/sweet recipes leak through otherwise. */
+      let recipePool = (hasTasteBias && targetedRecipes.length >= 5)
+        ? targetedRecipes
+        : [...targetedRecipes, ...RECIPES_CACHE]
+
+      /* 🔬 Enrichment no longer needed — nutrition now extracted from master list */
+      // if (targetedRecipes.length > 0) {
+      //   recipePool = await enrichRecipesWithDetails(recipePool, 10)
+      // }
+
+      const filtered = getRelaxedRecipes(recipePool)
 
 
       const ranked = filtered
@@ -209,9 +290,25 @@ if (RECIPES_CACHE.length === 0) {
           ...recipe,
           score: scoreRecipe(recipe),
         }))
-        .sort((a,b) => b.score - a.score)
+        .sort((a, b) => b.score - a.score)
 
-      setRecipes(ranked.slice(0, MIN_RECIPES))
+      const topRecipes = ranked.slice(0, MIN_RECIPES)
+      setRecipes(topRecipes)
+
+      // 🖼 Resolve images in parallel (fire-and-forget so cards render fast)
+      const resolveImages = async () => {
+        const imgMap: Record<string, string> = {}
+        await Promise.allSettled(
+          topRecipes.map(async (r: any) => {
+            try {
+              const img = await getDishImage(r.title)
+              if (img) imgMap[r.id] = img.url
+            } catch { /* skip */ }
+          })
+        )
+        setRecipeImages(prev => ({ ...prev, ...imgMap }))
+      }
+      resolveImages()
 
     } catch (err) {
       console.error("FETCH ERROR:", err)
@@ -229,57 +326,149 @@ if (RECIPES_CACHE.length === 0) {
   /* ⭐ Click Handler */
   /* -------------------------------------------------- */
 
-const handleRecipeClick = async (recipe:any) => {
+  const handleRecipeClick = async (recipe: any) => {
 
-  console.log("CLICKED:", recipe)
+    console.log("CLICKED:", recipe)
 
-  setLoading(true)
+    setLoading(true)
 
-  let instructionsData
-  let detailsData
+    let instructionsData: any = { instructions: [] }
+    let detailsData: any = { ingredients: [] }
 
-  /* ✅ Instructions Cache */
-  if (INSTRUCTIONS_CACHE[recipe.id]) {
+    /* -------------------------------------------------- */
+    /* 🗄️ STEP 1: Check Supabase cache first              */
+    /* -------------------------------------------------- */
+    try {
+      const { data: cached } = await supabase
+        .from('recipes')
+        .select('instructions, ingredients, protein, carbs, fat, calories')
+        .eq('recipe_id', recipe.id)
+        .limit(1)
+        .single()
 
-    instructionsData = INSTRUCTIONS_CACHE[recipe.id]
+      if (cached && cached.instructions && cached.instructions.length > 0) {
+        console.log('✅ SUPABASE HIT — using cached data for', recipe.title)
+        instructionsData = { instructions: cached.instructions }
+        detailsData = { ingredients: cached.ingredients || [] }
+
+        // Also fill in nutrition from Supabase if master list was missing
+        if (cached.protein && cached.protein > 0 && recipe.protein === 0) recipe.protein = cached.protein
+        if (cached.carbs && cached.carbs > 0 && recipe.carbs === 0) recipe.carbs = cached.carbs
+        if (cached.fat && cached.fat > 0 && recipe.fat === 0) recipe.fat = cached.fat
+      } else {
+        throw new Error('Cache miss')  // fall through to API
+      }
+    } catch {
+      /* -------------------------------------------------- */
+      /* 🌐 STEP 2: Fallback to Foodoscope API              */
+      /* -------------------------------------------------- */
+      console.log('📡 SUPABASE MISS — calling APIs for', recipe.title)
+
+      /* ✅ Instructions — in-memory cache → API */
+      if (INSTRUCTIONS_CACHE[recipe.id]) {
+        instructionsData = INSTRUCTIONS_CACHE[recipe.id]
+      } else {
+        try {
+          instructionsData = await getRecipeInstructions(recipe.id)
+          INSTRUCTIONS_CACHE[recipe.id] = instructionsData
+        } catch { console.error('Instructions API failed for', recipe.id) }
+      }
+
+      /* ✅ Details — in-memory cache → API */
+      if (DETAILS_CACHE[recipe.id]) {
+        detailsData = DETAILS_CACHE[recipe.id]
+      } else {
+        try {
+          detailsData = await getRecipeDetails(recipe.id)
+          DETAILS_CACHE[recipe.id] = detailsData
+        } catch { console.error('Details API failed for', recipe.id) }
+      }
+
+      /* -------------------------------------------------- */
+      /* 💾 STEP 3: Save to Supabase for next time          */
+      /* -------------------------------------------------- */
+      const mappedIngredients = (detailsData.ingredients || []).map((ing: any) => ({
+        name: ing.ingredient || '',
+        quantity: ing.quantity || '0',
+        unit: ing.unit || '',
+        phrase: ing.ingredient_Phrase || ing.ingredient || '',
+      }))
+
+      try {
+        await supabase
+          .from('recipes')
+          .upsert([{
+            recipe_id: recipe.id,
+            name: recipe.title,
+            calories: recipe.calories || 0,
+            protein: recipe.protein || 0,
+            carbs: recipe.carbs || 0,
+            fat: recipe.fat || 0,
+            cook_time: recipe.cookTime || 0,
+            prep_time: recipe.prepTime || 0,
+            servings: recipe.servings || 0,
+            region: recipe.region || '',
+            continent: recipe.continent || '',
+            instructions: instructionsData.instructions || [],
+            ingredients: mappedIngredients,
+          }], { onConflict: 'recipe_id' })
+
+        console.log('💾 Cached to Supabase:', recipe.title)
+      } catch (err) {
+        console.error('Supabase cache write failed:', err)
+      }
+    }
+
+    // Resolve image for the detail modal
+    let recipeImageUrl = recipeImages[recipe.id] || '/placeholder.svg'
+    if (recipeImageUrl === '/placeholder.svg') {
+      try {
+        const img = await getDishImage(recipe.title)
+        if (img) recipeImageUrl = img.url
+      } catch { /* fallback to placeholder */ }
+    }
+
+    const fullRecipe = {
+      id: recipe.id,
+      name: recipe.title,
+      image: recipeImageUrl,
+
+      // ⭐ Full nutrition from master list
+      prepTime: recipe.prepTime,
+      cookTime: recipe.cookTime,
+      totalTime: recipe.totalTime,
+      servings: recipe.servings,
+      calories: recipe.calories,
+      energy: recipe.energy,
+      protein: recipe.protein,
+      carbs: recipe.carbs,
+      fat: recipe.fat,
+
+      // ⭐ Metadata
+      region: recipe.region,
+      subRegion: recipe.subRegion,
+      utensils: recipe.utensils,
+      processes: recipe.processes,
+
+      // ⭐ Health score: lower cal + higher protein = healthier
+      healthScore: Math.round(
+        Math.min(100, Math.max(0,
+          Math.max(0, 100 - (recipe.calories / 8)) +
+          Math.min(recipe.protein * 2, 40)
+        ))
+      ),
+
+      // ⭐ Instructions & ingredients (from Supabase or API)
+      instructions: instructionsData.instructions || [],
+      ingredients: (detailsData.ingredients || []).map(
+        (ing: any) => typeof ing === 'string' ? ing : (ing.phrase || ing.name || ing.ingredient || ing)
+      ),
+    }
+
+    setSelectedRecipe(fullRecipe)
+
+    setLoading(false)
   }
-  else {
-
-    instructionsData = await getRecipeInstructions(recipe.id)
-    INSTRUCTIONS_CACHE[recipe.id] = instructionsData
-  }
-
-  /* ✅ Details Cache */
-  if (DETAILS_CACHE[recipe.id]) {
-
-    detailsData = DETAILS_CACHE[recipe.id]
-  }
-  else {
-
-    detailsData = await getRecipeDetails(recipe.id)
-    DETAILS_CACHE[recipe.id] = detailsData
-  }
-
-  const fullRecipe = {
-    id: recipe.id,
-    name: recipe.title,
-    image: '/placeholder.svg',
-
-    prepTime: recipe.prepTime,
-    calories: recipe.calories,
-    protein: recipe.protein,
-
-    instructions: instructionsData.instructions,
-
-    ingredients: detailsData.ingredients.map(
-      (ing:any) => ing.ingredient
-    ),
-  }
-
-  setSelectedRecipe(fullRecipe)
-
-  setLoading(false)
-}
 
 
 
@@ -349,15 +538,33 @@ const handleRecipeClick = async (recipe:any) => {
                 <div
                   key={`${recipe.id}-${index}`}
                   onClick={() => handleRecipeClick(recipe)}
-                  className="rounded-2xl border p-4 hover:shadow-md cursor-pointer"
+                  className="rounded-2xl border overflow-hidden hover:shadow-lg cursor-pointer transition-shadow duration-300 bg-white"
                 >
-                  <p className="font-bold">
-                    {recipe.title}
-                  </p>
+                  {/* Recipe Image */}
+                  <div className="h-44 w-full relative bg-muted overflow-hidden">
+                    <Image
+                      src={recipeImages[recipe.id] || '/placeholder.svg'}
+                      alt={recipe.title}
+                      fill
+                      className="object-cover hover:scale-105 transition-transform duration-500"
+                    />
+                  </div>
 
-                  <p className="text-sm text-muted-foreground">
-                    {recipe.calories} kcal
-                  </p>
+                  <div className="p-4">
+                    <p className="font-bold line-clamp-2">
+                      {recipe.title}
+                    </p>
+
+                    <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                      <span>{Math.round(recipe.calories)} kcal</span>
+                      {recipe.protein > 0 && (
+                        <span className="text-blue-600 font-medium">{Math.round(recipe.protein)}g protein</span>
+                      )}
+                      {recipe.carbs > 0 && (
+                        <span className="text-amber-600 font-medium">{Math.round(recipe.carbs)}g carbs</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               ))}
 
@@ -370,6 +577,7 @@ const handleRecipeClick = async (recipe:any) => {
       <FoodDetailModal
         recipe={selectedRecipe}
         onClose={() => setSelectedRecipe(null)}
+        onCookWithChef={onCookWithChef}
       />
     </div>
   )

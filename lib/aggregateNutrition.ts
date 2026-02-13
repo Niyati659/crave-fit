@@ -1,5 +1,5 @@
-export function aggregateNutrition(data:any[]) {
-    const map: Record<string, any> = {}
+export function aggregateNutrition(data: any[]) {
+  const map: Record<string, any> = {}
 
   data.forEach(item => {
     const id = item.Recipe_id

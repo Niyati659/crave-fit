@@ -1,3 +1,4 @@
+//chef friend 
 'use client'
 
 import { useState, useEffect } from 'react'
@@ -30,8 +31,27 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
         if (initialRecipe) {
             setRecipe(initialRecipe)
             setCurrentStep(0)
+            // Auto-fetch if we only have a name
+            if (initialRecipe.name && !initialRecipe.instructions) {
+                handleAutoFetchRecipe(initialRecipe.name)
+            }
         }
     }, [initialRecipe])
+
+    const handleAutoFetchRecipe = async (recipeName: string) => {
+        setIsGenerating(true)
+        try {
+            const fetchedRecipe = await getRecipeByTitle(recipeName)
+            if (fetchedRecipe) {
+                setRecipe(fetchedRecipe)
+                setCurrentStep(0)
+            }
+        } catch (error) {
+            console.error('Auto-fetch recipe error:', error)
+        } finally {
+            setIsGenerating(false)
+        }
+    }
 
     const steps = recipe?.instructions || [
         "Select a recipe to start cooking with your Chef Friend!",
@@ -110,6 +130,13 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
     useEffect(() => {
         if (!recipe) return
         const instruction = steps[currentStep]
+        if (!instruction || typeof instruction !== 'string') {
+            setTimeLeft(null)
+            setInitialTime(null)
+            setIsTimerRunning(false)
+            setImageError(false)
+            return
+        }
         const timeMatch = instruction.match(/(\d+)\s*(minute|min|sec|second)/i)
         if (timeMatch) {
             const amount = parseInt(timeMatch[1])

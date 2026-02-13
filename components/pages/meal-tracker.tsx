@@ -110,21 +110,21 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
   }, [user, selectedDate])
 
   useEffect(() => {
-  async function loadRecipes() {
-    const raw = await fetchNutritionRecipes()
+    async function loadRecipes() {
+      const raw = await fetchNutritionRecipes()
 
-    console.log("RAW API DATA:", raw)   // 👈 ADD
+      console.log("RAW API DATA:", raw)   // 👈 ADD
 
-    const aggregated = aggregateNutrition(raw)
+      const aggregated = aggregateNutrition(raw)
 
-    console.log("AGGREGATED:", aggregated) // 👈 ADD
+      console.log("AGGREGATED:", aggregated) // 👈 ADD
 
-    setRecipes(aggregated)
-    setLoadingRecipes(false)
-  }
+      setRecipes(aggregated)
+      setLoadingRecipes(false)
+    }
 
-  loadRecipes()
-}, [])
+    loadRecipes()
+  }, [])
 
   useEffect(() => {
     if (!user) return
@@ -834,7 +834,7 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
               </div>
             )}
           </div>
-            {/* Smart Suggestions */}
+          {/* Smart Suggestions */}
 
           <Card className="p-6 border border-border/30 shadow-sm">
             <h2 className="text-2xl font-bold mb-6">
@@ -854,7 +854,7 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
                       Protein Boost
                     </h3>
 
-                    {proteinSuggestions.slice(0,3).map(r => (
+                    {proteinSuggestions.slice(0, 3).map(r => (
                       <Card
                         key={r.id}
                         className="p-3 flex justify-between items-center mb-2"
@@ -896,7 +896,7 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
                       Carbs Boost
                     </h3>
 
-                    {carbsSuggestions.slice(0,3).map(r => (
+                    {carbsSuggestions.slice(0, 3).map(r => (
                       <Card
                         key={r.id}
                         className="p-3 flex justify-between items-center mb-2"
@@ -938,7 +938,7 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
                       Quick Fill
                     </h3>
 
-                    {quickSuggestions.slice(0,3).map(r => (
+                    {quickSuggestions.slice(0, 3).map(r => (
                       <Card
                         key={r.id}
                         className="p-3 flex justify-between items-center mb-2"
@@ -981,4 +981,3 @@ export function MealTracker({ onBack, onNavigate }: MealTrackerProps) {
     </div>
   )
 }
-

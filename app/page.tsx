@@ -113,6 +113,36 @@ export default function Page() {
     setCurrentView(view)
   }
 
+  /* ⭐ Save quiz answers to Supabase */
+  const saveQuizToSupabase = async (answers: Record<string, string>) => {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        console.warn('No session — skipping quiz save to Supabase')
+        return
+      }
+
+      const { error } = await supabase
+        .from('quiz_responses')
+        .insert({
+          user_id: session.user.id,
+          mood: answers.mood || null,
+          texture: answers.texture || null,
+          taste: answers.taste || null,
+          hunger: answers.hunger || null,
+          diet: answers.diet || null,
+        })
+
+      if (error) {
+        console.error('Error saving quiz to Supabase:', error)
+      } else {
+        console.log('✅ Quiz response saved to Supabase')
+      }
+    } catch (err) {
+      console.error('Quiz Supabase save error:', err)
+    }
+  }
+
   const handleQuizComplete = (
     answers: Record<string, string>
   ) => {
@@ -130,6 +160,7 @@ export default function Page() {
     setQuizMeta(meta)
 
     saveQuizHistory(meta)
+    saveQuizToSupabase(answers)
 
     setCurrentView('recommendations')
   }
