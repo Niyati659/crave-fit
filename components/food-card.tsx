@@ -22,29 +22,42 @@ export function FoodCard({ food, matchScore, onClick }: FoodCardProps) {
   return (
     <Card
       onClick={onClick}
-      className="overflow-hidden hover:shadow-xl transition-all duration-300 group cursor-pointer border border-border/50 hover:border-primary/30 relative"
+      className="
+        overflow-hidden 
+        group 
+        cursor-pointer 
+        bg-card 
+        text-card-foreground
+        border border-border/60
+        shadow-sm
+        hover:shadow-2xl
+        hover:-translate-y-1
+        hover:border-primary/40
+        transition-all duration-300
+      "
     >
       {/* Image */}
       <div className="h-56 w-full relative overflow-hidden bg-muted">
         <Image
           src={food.image || "/placeholder.svg"}
-          alt={food.recipe_name}
+          alt={food.name}
           fill
           className="object-cover group-hover:scale-110 transition-transform duration-500"
         />
       </div>
 
       {/* Content */}
-      <div className="p-6 space-y-4 bg-white">
-        {/* Name and Health Score */}
+      <div className="p-6 space-y-5">
+        {/* Name + Health Score */}
         <div className="flex items-start justify-between gap-3">
-          <h3 className="font-bold text-lg text-foreground flex-1 line-clamp-2">
-            {food.recipe_name}
+          <h3 className="font-semibold text-lg text-foreground flex-1 line-clamp-2 leading-snug">
+            {food.name}
           </h3>
+
           <div
-            className="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-base shadow-md"
+            className="flex-shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-base shadow-md backdrop-blur-sm"
             style={{
-              backgroundColor: `${healthColor}15`,
+              backgroundColor: `${healthColor}20`,
               color: healthColor,
               border: `2px solid ${healthColor}`,
             }}
@@ -53,8 +66,8 @@ export function FoodCard({ food, matchScore, onClick }: FoodCardProps) {
           </div>
         </div>
 
-        {/* Nutrition Info Grid */}
-        <div className="grid grid-cols-3 gap-3 py-4 border-y border-border/30">
+        {/* Nutrition Grid */}
+        <div className="grid grid-cols-3 gap-3 py-4 border-y border-border/50">
           <div className="text-center">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Calories
@@ -64,7 +77,7 @@ export function FoodCard({ food, matchScore, onClick }: FoodCardProps) {
             </p>
           </div>
 
-          <div className="text-center border-x border-border/30">
+          <div className="text-center border-x border-border/50">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Protein
             </p>
@@ -83,27 +96,49 @@ export function FoodCard({ food, matchScore, onClick }: FoodCardProps) {
           </div>
         </div>
 
-        {/* Category + Diet + Optional Match */}
+        {/* Region + Diet + Match */}
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex gap-2 flex-wrap">
             {food.region && (
-              <span className="inline-block px-4 py-2 rounded-full text-xs font-semibold bg-primary/10 text-primary">
+              <span className="
+                px-4 py-2 
+                rounded-full 
+                text-xs 
+                font-semibold 
+                bg-primary/20 
+                text-primary
+              ">
                 {food.region}
               </span>
             )}
 
             {food.dietType && (
-              <span className="inline-block px-4 py-2 rounded-full text-xs font-semibold bg-muted text-muted-foreground">
+              <span className="
+                px-4 py-2 
+                rounded-full 
+                text-xs 
+                font-semibold 
+                bg-muted/70 
+                text-muted-foreground
+              ">
                 {food.dietType}
               </span>
             )}
           </div>
 
-          {/* {matchScore !== undefined && (
-            <span className="text-xs font-bold text-primary bg-primary/10 px-3 py-2 rounded-full">
+          {matchScore !== undefined && (
+            <span className="
+              text-xs 
+              font-bold 
+              text-primary 
+              bg-primary/20 
+              px-3 
+              py-2 
+              rounded-full
+            ">
               {Math.round(matchScore)}%
-            </span> */}
-          {/* )} */}
+            </span>
+          )}
         </div>
       </div>
     </Card>

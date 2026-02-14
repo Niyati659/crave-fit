@@ -238,92 +238,131 @@ export async function smartSearch(params: SmartSearchParams) {
     console.log("🌐 Missing from DB:", missingRecipes.length);
 
     // 5️⃣ Fetch only missing from API
-    const fetchedFromApi = await Promise.all(
+   const apiResults = await Promise.all(
       missingRecipes.map(async (recipe: any) => {
         const detailUrl = `https://api.foodoscope.com/recipe2-api/search-recipe/${recipe.Recipe_id}`;
+        const recipeUrl = `https://api.foodoscope.com/recipe2-api/instructions/${recipe.Recipe_id}`;
 
-        const detailResponse = await fetch(detailUrl, {
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${process.env.NEXT_PUBLIC_FOODOSCOPE_KEY}`,
-          },
-        });
+        const [detailRes, recipeRes] = await Promise.all([
+          fetch(detailUrl, {
+            headers: {
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_FOODOSCOPE_KEY}`,
+            },
+          }),
+          fetch(recipeUrl, {
+            headers: {
+              Authorization: `Bearer ${process.env.NEXT_PUBLIC_FOODOSCOPE_KEY}`,
+            },
+          }),
+        ]);
 
-        if (!detailResponse.ok) {
-          console.error("Detail fetch failed:", recipe.Recipe_id);
+        if (!detailRes.ok || !recipeRes.ok) {
+          console.log(`❌ Failed to fetch details for recipe ID ${recipe.Recipe_id}`);
           return null;
         }
 
-        const detailData = await detailResponse.json();
+        const detailData = await detailRes.json();
+        const recipeData = await recipeRes.json();
+
         const detailedRecipe = detailData.recipe;
 
-        const cal = Number(detailedRecipe?.Calories || 0);
-        const prot = Number(detailedRecipe?.['Protein (g)'] || 0);
+        // Extract ingredients
+        const ingredients = (recipeData.ingredients || [])
+          .map((ing: any) => ing.ingredient)
+          .filter(Boolean);
 
-        const calScore = Math.max(0, 100 - (cal / 8));
-        const protScore = Math.min(prot * 2, 40);
+        // Extract instructions
+        const instructions =
+          recipeData.steps ||
+          [];
+
+        const calories = Number(detailedRecipe?.Calories || 0);
+        const protein = Number(detailedRecipe?.['Protein (g)'] || 0);
+        const carbs = Number(detailedRecipe?.["Carbohydrate, by difference (g)"] || 0);
+        const fat = Number(detailedRecipe?.["Total lipid (fat) (g)"] || 0);
+
+        const calScore = Math.max(0, 100 - (calories / 8));
+        const protScore = Math.min(protein * 2, 40);
         const healthScore = Math.round(Math.min(100, Math.max(0, calScore + protScore)));
 
-        return {
+        // 🔵 DB OBJECT (exact schema match)
+        const dbObject = {
           recipe_id: recipe.Recipe_id,
-          recipe_name: recipe.Recipe_title,
+          name: recipe.Recipe_title,
           region: recipe.Region,
-          calories: Math.round(cal),
-          protein: Math.round(prot),
-          carbs: Math.round(Number(detailedRecipe?.['Carbohydrate, by difference (g)'] || 0)),
-          fat: Math.round(Number(detailedRecipe?.['Total lipid (fat) (g)'] || 0)),
-          cookTime: recipe.cook_time,
-          prepTime: recipe.prep_time,
-          servings: detailedRecipe?.servings,
-          healthScore,
+          continent: recipe.Continent || null,
+          calories: Math.round(calories),
+          protein: Math.round(protein),
+          carbs: Math.round(carbs),
+          fat: Math.round(fat),
+          fiber: Number(0),
+          cook_time: recipe.cook_time,
+          prep_time: recipe.prep_time,
+          servings: detailedRecipe?.servings || null,
+          ingredients,
+          instructions,
         };
+
+        return dbObject;
       })
     );
 
     // Remove nulls if any failed
-    const cleanApiResults = fetchedFromApi.filter(
+    const cleanApiResults = apiResults.filter(
   (r): r is NonNullable<typeof r> => r !== null
 );
 
 
-    // 6️⃣ Normalize DB results to same shape
-    const normalizedDbResults = (dbRecipes || []).map(r => ({
-      recipe_id: r.recipe_id,
-      recipe_name: r.name,
-      region: r.region,
-      calories: Math.round(Number(r.calories || 0)),
-      protein: Math.round(Number(r.protein || 0)),
-      carbs: Math.round(Number(r.carbs || 0)),
-      fat: Math.round(Number(r.fat || 0)),
-      cookTime: r.cook_time,
-      prepTime: r.prep_time,
-      servings: r.servings,
-      healthScore: Math.round(
+    if (cleanApiResults.length > 0) {
+  const { data, error } = await supabase
+    .from("recipes")
+    .upsert(cleanApiResults, { onConflict: "recipe_id" })
+    .select();
+
+  if (error) {
+    console.error("❌ Supabase upsert error:", error);
+  } else {
+    console.log("✅ Supabase actually inserted:", data?.length);
+  }
+}
+
+    // 5️⃣ Combine DB + newly inserted
+    const finalDbRecords = [
+      ...(dbRecipes || []),
+      ...cleanApiResults,
+    ];
+
+    // 6️⃣ Convert DB → Frontend shape
+    const frontendResults = finalDbRecords.map(r => {
+      const healthScore = Math.round(
         Math.min(
           100,
           Math.max(
             0,
-            Math.max(0, 100 - (Number(r.calories || 0) / 8)) +
-            Math.min(Number(r.protein || 0) * 2, 40)
+            (100 - r.calories / 8) + Math.min(r.protein * 2, 40)
           )
         )
-      ),
-    }));
+      );
 
-    // 7️⃣ Merge
-    const combined = [
-      ...normalizedDbResults,
-      ...cleanApiResults,
-    ];
-
-    console.log("🎉 Combined results:", combined.length);
+      return {
+        recipe_id: r.recipe_id,
+        name: r.name,
+        region: r.region,
+        calories: r.calories,
+        protein: r.protein,
+        carbs: r.carbs,
+        fat: r.fat,
+        healthScore,
+        cookTime: r.cook_time,
+      };
+    });
 
     // 8️⃣ Apply filters at end
     if (!params.query || Object.keys(intentFilters).length === 0) {
-      return combined;
+      return frontendResults;
     }
 
-    let filtered = combined;
+    let filtered = frontendResults;
 
     if (intentFilters.maxTime) {
       filtered = filtered.filter(

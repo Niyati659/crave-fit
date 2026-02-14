@@ -79,7 +79,7 @@ export function BrowseScreen({ onBack }: BrowseScreenProps) {
         Promise.allSettled(
           foods.map(async (food) => {
             try {
-              const img = await getDishImage(food.recipe_name);
+              const img = await getDishImage(food.name);
               if (img) {
                 setResults((prev) =>
                   prev.map((f) =>
@@ -111,7 +111,8 @@ export function BrowseScreen({ onBack }: BrowseScreenProps) {
       <div className="max-w-6xl mx-auto space-y-8">
         {/* Header */}
         <div className="space-y-2">
-          <h1 className="text-3xl font-bold">Browse Foods</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+Browse Foods</h1>
           <p className="text-muted-foreground">
             Search for healthy cravings or explore quick options.
           </p>
@@ -123,7 +124,8 @@ export function BrowseScreen({ onBack }: BrowseScreenProps) {
           <select
             value={cuisine}
             onChange={(e) => setCuisine(e.target.value)}
-            className="w-full h-10 rounded-md border bg-background px-3 text-sm"
+            className="w-full h-10 rounded-md border border-border bg-background text-foreground px-3 text-sm"
+
           >
             {cuisineOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -184,7 +186,7 @@ export function BrowseScreen({ onBack }: BrowseScreenProps) {
                     key={type}
                     onClick={() => setActiveDiet(type === "All" ? null : type)}
                     className={`px-4 py-2 rounded-full text-sm font-medium transition ${isActive
-                      ? "bg-primary text-white"
+                      ? "bg-primary text-primary-foreground"
                       : "bg-muted text-muted-foreground hover:bg-muted/70"
                       }`}
                   >

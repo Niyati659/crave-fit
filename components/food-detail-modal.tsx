@@ -9,11 +9,9 @@ import {
 import { Button } from "@/components/ui/button";
 import type { Food } from "@/lib/typefood";
 import { ExternalLink, Plus } from "lucide-react";
-import { SwapCard } from "./swapcard";
 import Image from "next/image";
-import { supabase } from "@/lib/supabase"
-import { useState } from "react"
-
+import { supabase } from "@/lib/supabase";
+import { useState } from "react";
 
 interface FoodDetailModalProps {
   food: Food | null;
@@ -32,37 +30,36 @@ export function FoodDetailModal({
   food,
   onClose,
   matchScore,
-  whyMatched,
 }: FoodDetailModalProps) {
-  const [adding, setAdding] = useState(false)
+  const [adding, setAdding] = useState(false);
 
-  if (!food) return null
+  if (!food) return null;
 
   const zomatoSearchUrl = `https://www.zomato.com/search?q=${encodeURIComponent(
-    food.recipe_name
-  )}`
+    food.name
+  )}`;
 
   const handleAddToTracker = async () => {
     try {
-      setAdding(true)
+      setAdding(true);
 
       const {
         data: { user },
-      } = await supabase.auth.getUser()
+      } = await supabase.auth.getUser();
 
       if (!user) {
-        alert("Please login to add meals.")
-        return
+        alert("Please login to add meals.");
+        return;
       }
 
-      const selectedDate = new Date().toISOString().split("T")[0]
-      const time = new Date().toTimeString().slice(0, 5)
+      const selectedDate = new Date().toISOString().split("T")[0];
+      const time = new Date().toTimeString().slice(0, 5);
 
       const { error } = await supabase.from("meals").insert([
         {
           user_id: user.id,
-          name: food.recipe_name,
-          detected_food: food.recipe_name,
+          name: food.name,
+          detected_food: food.name,
           calories: food.calories,
           protein: food.protein,
           carbs: food.carbs ?? 0,
@@ -72,152 +69,107 @@ export function FoodDetailModal({
           time,
           date: selectedDate,
         },
-      ])
+      ]);
 
       if (error) {
-        console.error("Insert error:", error)
-        alert("Failed to add meal.")
-        return
+        console.error(error);
+        alert("Failed to add meal.");
+        return;
       }
 
-      alert("Meal added successfully!")
-    } catch (err) {
-      console.error(err)
+      alert("Meal added successfully!");
     } finally {
-      setAdding(false)
+      setAdding(false);
     }
-  }
-
+  };
 
   return (
     <Dialog open={!!food} onOpenChange={onClose}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0 bg-card text-card-foreground border border-border shadow-xl">
 
-
-        {/* IMAGE + OVERLAY */}
+        {/* IMAGE SECTION */}
         {food.image && (
-  <div className="relative w-full h-64 rounded-2xl overflow-hidden">
-    <Image
-      src={food.image}
-      alt={food.recipe_name}
-      fill
-      className="object-cover"
-      sizes="(max-width: 768px) 100vw, 800px"
-    />
-            {/* Gradient Overlay */}
-            <div className="absolute inset-0 bg-black/40" />
-<div className="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent" />
+          <div className="relative w-full h-64 overflow-hidden">
+            <Image
+              src={food.image}
+              alt={food.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 800px"
+            />
 
+            {/* Gradient Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-background/90 via-background/40 to-transparent" />
 
             {/* Floating Tags */}
             <div className="absolute bottom-4 left-4 flex flex-wrap gap-2">
               {food.region && (
-                <span className="px-3 py-1 text-xs font-medium bg-white/20 text-white backdrop-blur-md rounded-full">
+                <span className="px-3 py-1 text-xs font-medium bg-background/70 text-foreground border border-border rounded-full backdrop-blur-sm">
                   {food.region}
                 </span>
               )}
               {food.dietType && (
-                <span className="px-3 py-1 text-xs font-medium bg-white/20 text-white backdrop-blur-md rounded-full">
+                <span className="px-3 py-1 text-xs font-medium bg-muted text-muted-foreground rounded-full">
                   {food.dietType}
                 </span>
               )}
-              <span className="px-3 py-1 text-xs font-medium bg-emerald-500/80 text-white rounded-full">
+              <span className="px-3 py-1 text-xs font-medium bg-primary text-primary-foreground rounded-full">
                 {getHealthLabel(food.healthScore)}
               </span>
             </div>
           </div>
         )}
 
+        {/* CONTENT */}
         <div className="p-6 space-y-6">
 
           {/* Header */}
           <DialogHeader>
             <DialogTitle className="text-2xl font-bold flex items-center justify-between">
-              {food.recipe_name}
+              {food.name}
               {matchScore !== undefined && (
-                <span className="text-sm font-semibold bg-primary/10 text-primary px-3 py-1 rounded-full">
+                <span className="text-sm font-semibold bg-primary/20 text-primary px-3 py-1 rounded-full">
                   {Math.round(matchScore)}% Match
                 </span>
               )}
             </DialogTitle>
           </DialogHeader>
 
-          {/* Nutrition Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-2 gap-4">
-            <MacroCard
-              label="Calories"
-              value={food.calories}
-              unit=""
-              bg="bg-amber-50"
-              text="text-amber-600"
-            />
-            <MacroCard
-              label="Protein"
-              value={food.protein}
-              unit="g"
-              bg="bg-blue-50"
-              text="text-blue-600"
-            />
-            <MacroCard
-              label="Carbs"
-              value={food.carbs ?? "-"}
-              unit="g"
-              bg="bg-purple-50"
-              text="text-purple-600"
-            />
-            <MacroCard
-              label="Fat"
-              value={food.fat ?? "-"}
-              unit="g"
-              bg="bg-rose-50"
-              text="text-rose-600"
-            />
-          </div>
-
-          {/* ACTION ROW */}
-<div className="flex flex-col sm:flex-row gap-3">
-
-  {/* Add to Meal Tracker */}
-  <Button
-    onClick={handleAddToTracker}
-    disabled={adding}
-    className="flex-1 flex items-center justify-center gap-2"
-  >
-    <Plus className="w-4 h-4" />
-    {adding ? "Adding..." : "Add to Meal Tracker"}
-  </Button>
-
-  {/* Zomato */}
-  <Button
-    asChild
-    variant="outline"
-    className="flex-1 flex items-center justify-center gap-2 border-red-500 text-red-600 hover:bg-red-50"
-  >
-    <a
-      href={zomatoSearchUrl}
-      target="_blank"
-      rel="noopener noreferrer"
-    >
-      Order on Zomato
-      <ExternalLink className="w-4 h-4" />
-    </a>
-  </Button>
+          {/* Macros */}
+         <div className="grid grid-cols-2 gap-4">
+  <MacroCard label="Calories" value={food.calories} unit="" accent="amber" />
+  <MacroCard label="Protein" value={food.protein} unit="g" accent="blue" />
+  <MacroCard label="Carbs" value={food.carbs ?? "-"} unit="g" accent="purple" />
+  <MacroCard label="Fat" value={food.fat ?? "-"} unit="g" accent="rose" />
 </div>
 
+          {/* ACTIONS */}
+          <div className="flex flex-col sm:flex-row gap-3">
 
-          {/* Why Matched */}
-          {whyMatched && (
-            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-              <p className="text-sm font-medium text-foreground">
-                {whyMatched}
-              </p>
-            </div>
-          )}
+            <Button
+              onClick={handleAddToTracker}
+              disabled={adding}
+              className="flex-1 flex items-center justify-center gap-2"
+            >
+              <Plus className="w-4 h-4" />
+              {adding ? "Adding..." : "Add to Meal Tracker"}
+            </Button>
 
-          {/* Swap Section */}
-          {food.healthierRecipe && (
-            <SwapCard originalFood={food} />
-          )}
+            <Button
+              asChild
+              variant="outline"
+              className="flex-1 flex items-center justify-center gap-2"
+            >
+              <a
+                href={zomatoSearchUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Order on Zomato
+                <ExternalLink className="w-4 h-4" />
+              </a>
+            </Button>
+          </div>
 
           {/* Close */}
           <Button
@@ -237,28 +189,40 @@ function MacroCard({
   label,
   value,
   unit,
-  bg,
-  text,
+  accent,
 }: {
   label: string;
   value: string | number;
   unit: string;
-  bg: string;
-  text: string;
+  accent: "amber" | "blue" | "purple" | "rose";
 }) {
-  return (
-    <div className={`${bg} rounded-2xl p-4 text-center shadow-sm`}>
-   
-      
-      <p className={`text-3xl font-bold ${text}`}>
-  {value}{unit}
-</p>
-<p className="text-xs uppercase tracking-wider text-muted-foreground mt-1">
-  {label}
-</p>
+  const accentStyles = {
+    amber: "bg-amber-500/10 text-amber-400 border-amber-500/30",
+    blue: "bg-blue-500/10 text-blue-400 border-blue-500/30",
+    purple: "bg-purple-500/10 text-purple-400 border-purple-500/30",
+    rose: "bg-rose-500/10 text-rose-400 border-rose-500/30",
+  };
 
+  return (
+    <div
+      className={`
+        rounded-xl 
+        p-5 
+        text-center 
+        border 
+        shadow-sm
+        transition-all
+        duration-300
+        ${accentStyles[accent]}
+      `}
+    >
+      <p className="text-3xl font-bold">
+        {value}{unit}
+      </p>
+
+      <p className="text-xs uppercase tracking-wider text-muted-foreground mt-2">
+        {label}
+      </p>
     </div>
   );
 }
-
-

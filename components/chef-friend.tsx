@@ -5,9 +5,12 @@ import { useState, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Timer, ArrowRight, ArrowLeft, Camera, CheckCircle2, Clock, X, UserCircle2, Loader2 } from 'lucide-react'
 import Image from 'next/image'
 import { getRecipeByTitle, type Recipe } from '@/lib/recipes'
+import { checkFlavorCompatibility, type CompatibilityResult } from '@/lib/ingredient-compatibility'
+import { getRecipeSuggestions, type RecipeCard } from '@/lib/recipe-suggestions'
 
 interface ChefFriendProps {
     recipe?: Partial<Recipe>
@@ -25,6 +28,17 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
     const [isGenerating, setIsGenerating] = useState(false)
     const [initialTime, setInitialTime] = useState<number | null>(null)
     const [isDone, setIsDone] = useState(false)
+    
+    // Ingredient compatibility state
+    const [activeTab, setActiveTab] = useState('recipe')
+    const [ingredient1, setIngredient1] = useState('')
+    const [ingredient2, setIngredient2] = useState('')
+    const [compatibilityResult, setCompatibilityResult] = useState<CompatibilityResult | null>(null)
+    const [isCheckingCompatibility, setIsCheckingCompatibility] = useState(false)
+    
+    // Recipe suggestions state
+    const [recipeSuggestions, setRecipeSuggestions] = useState<RecipeCard[]>([])
+    const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false)
 
     // Sync state if initialRecipe changes
     useEffect(() => {
@@ -123,6 +137,38 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
             console.error('Chef Buddy Generation Error:', error)
         } finally {
             setIsGenerating(false)
+        }
+    }
+
+    const handleCheckCompatibility = async () => {
+        if (!ingredient1.trim() || !ingredient2.trim()) {
+            return
+        }
+
+        setIsCheckingCompatibility(true)
+        setRecipeSuggestions([])
+        
+        try {
+            const result = await checkFlavorCompatibility(ingredient1, ingredient2)
+            setCompatibilityResult(result)
+
+            // Fetch recipe suggestions after compatibility check
+            if (result.match || result.score > 0) {
+                setIsLoadingSuggestions(true)
+                const suggestions = await getRecipeSuggestions(ingredient1, ingredient2)
+                setRecipeSuggestions(suggestions)
+                setIsLoadingSuggestions(false)
+            }
+        } catch (error) {
+            setCompatibilityResult({
+                match: false,
+                score: 0,
+                shared_molecules: 0,
+                verdict: 'Error checking compatibility',
+                error: 'Error checking compatibility'
+            })
+        } finally {
+            setIsCheckingCompatibility(false)
         }
     }
 
@@ -259,6 +305,23 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
                         </div>
 
                         <CardContent className="flex-1 p-6 md:p-10 relative overflow-y-auto bg-white/10 backdrop-blur-sm">
+                            <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full h-full">
+                                <TabsList className="grid w-full grid-cols-2 mb-6 bg-white/20 backdrop-blur-md border-2 border-white/20 rounded-2xl p-1">
+                                    <TabsTrigger 
+                                        value="recipe"
+                                        className="rounded-xl font-bold data-[state=active]:bg-white/40 data-[state=active]:text-black transition-all"
+                                    >
+                                        🍳 Recipe Guide
+                                    </TabsTrigger>
+                                    <TabsTrigger 
+                                        value="compatibility"
+                                        className="rounded-xl font-bold data-[state=active]:bg-white/40 data-[state=active]:text-black transition-all"
+                                    >
+                                        🔬 Ingredient Pairing
+                                    </TabsTrigger>
+                                </TabsList>
+
+                                <TabsContent value="recipe" className="mt-0 h-[calc(100%-60px)]">
                             {!recipe ? (
                                 <div className="flex flex-col items-center gap-6 py-4">
                                     <div className="text-center space-y-2">
@@ -419,6 +482,161 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
                                     </div>
                                 </div>
                             )}
+                                </TabsContent>
+
+                                <TabsContent value="compatibility" className="mt-0 h-[calc(100%-60px)]">
+                                    <div className="flex flex-col items-center justify-center h-full space-y-6 py-4">
+                                        <div className="w-full max-w-md space-y-6">
+                                            {/* Ingredient 1 Input */}
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-black uppercase">Ingredient 1</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g., Milk"
+                                                    value={ingredient1}
+                                                    onChange={(e) => setIngredient1(e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleCheckCompatibility()}
+                                                    className="w-full h-14 px-6 rounded-2xl border-4 border-black bg-white shadow-[6px_6px_0_rgba(0,0,0,0.1)] text-base font-bold focus:shadow-none focus:translate-x-1 focus:translate-y-1 transition-all outline-none"
+                                                />
+                                            </div>
+
+                                            {/* Ingredient 2 Input */}
+                                            <div className="space-y-2">
+                                                <label className="text-sm font-bold text-black uppercase">Ingredient 2</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="e.g., Salt"
+                                                    value={ingredient2}
+                                                    onChange={(e) => setIngredient2(e.target.value)}
+                                                    onKeyDown={(e) => e.key === 'Enter' && handleCheckCompatibility()}
+                                                    className="w-full h-14 px-6 rounded-2xl border-4 border-black bg-white shadow-[6px_6px_0_rgba(0,0,0,0.1)] text-base font-bold focus:shadow-none focus:translate-x-1 focus:translate-y-1 transition-all outline-none"
+                                                />
+                                            </div>
+
+                                            {/* Check Compatibility Button */}
+                                            <Button
+                                                onClick={handleCheckCompatibility}
+                                                disabled={isCheckingCompatibility}
+                                                className="w-full h-14 rounded-2xl bg-black/90 text-white font-bold text-lg shadow-[6px_6px_0_rgba(0,0,0,0.2)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
+                                            >
+                                                {isCheckingCompatibility ? (
+                                                    <>
+                                                        <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                                                        Checking...
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        🔬 Check Compatibility
+                                                    </>
+                                                )}
+                                            </Button>
+
+                                            {/* Results */}
+                                            {compatibilityResult && (
+                                                <div className="w-full space-y-4 mt-8 pt-6 border-t-4 border-white/20">
+                                                    {compatibilityResult.error ? (
+                                                        <div className="p-6 bg-red-500/10 border-4 border-red-500/20 rounded-2xl text-center">
+                                                            <p className="text-lg font-bold text-red-600 uppercase">{compatibilityResult.error}</p>
+                                                        </div>
+                                                    ) : (
+                                                        <>
+                                                            {/* Verdict Message */}
+                                                            <div className="p-4 bg-purple-500/10 border-4 border-purple-500/20 rounded-2xl text-center">
+                                                                <p className="text-2xl font-black text-purple-700">{compatibilityResult.verdict}</p>
+                                                            </div>
+
+                                                            {/* Score Display */}
+                                                            <div className="space-y-2">
+                                                                <div className="flex justify-between items-center">
+                                                                    <p className="font-bold text-black uppercase text-sm">Compatibility Score</p>
+                                                                    <p className="text-2xl font-black text-black">{compatibilityResult.score.toFixed(1)}%</p>
+                                                                </div>
+                                                                <Progress 
+                                                                    value={compatibilityResult.score} 
+                                                                    className="h-4 rounded-full bg-black/10 border-2 border-black/20"
+                                                                />
+                                                            </div>
+
+                                                            {/* Result Status */}
+                                                            <div className={`p-4 rounded-2xl border-4 text-center ${
+                                                                compatibilityResult.match 
+                                                                    ? 'bg-green-500/10 border-green-500/30' 
+                                                                    : 'bg-yellow-500/10 border-yellow-500/30'
+                                                            }`}>
+                                                                <p className={`font-bold text-lg uppercase ${
+                                                                    compatibilityResult.match 
+                                                                        ? 'text-green-600' 
+                                                                        : 'text-yellow-600'
+                                                                }`}>
+                                                                    {compatibilityResult.match 
+                                                                        ? '✨ Great Pairing!' 
+                                                                        : '⚠️ Not Ideal Together'}
+                                                                </p>
+                                                            </div>
+
+                                                            {/* Shared Molecules */}
+                                                            {compatibilityResult.shared_molecules > 0 && (
+                                                                <div className="p-4 bg-blue-500/10 border-4 border-blue-500/20 rounded-2xl">
+                                                                    <p className="text-xs font-bold text-blue-600 uppercase mb-1">Shared Flavor Molecules</p>
+                                                                    <p className="text-3xl font-black text-blue-700">{compatibilityResult.shared_molecules}</p>
+                                                                </div>
+                                                            )}
+
+                                                            {/* Recipe Suggestions */}
+                                                            {isLoadingSuggestions && (
+                                                                <div className="w-full flex justify-center py-8">
+                                                                    <Loader2 className="w-8 h-8 animate-spin text-black" />
+                                                                </div>
+                                                            )}
+
+                                                            {recipeSuggestions.length > 0 && !isLoadingSuggestions && (
+                                                                <div className="mt-8 pt-6 border-t-4 border-white/20 w-full">
+                                                                    <p className="text-sm font-bold text-black uppercase mb-4 text-center">🍳 Suggested Recipes</p>
+                                                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                                                        {recipeSuggestions.map((recipe, idx) => (
+                                                                            <button
+                                                                                key={idx}
+                                                                                onClick={async () => {
+                                                                                    const fetchedRecipe = await getRecipeByTitle(recipe.title)
+                                                                                    if (fetchedRecipe) {
+                                                                                        setRecipe(fetchedRecipe)
+                                                                                        setCurrentStep(0)
+                                                                                        setActiveTab('recipe')
+                                                                                    }
+                                                                                }}
+                                                                                className="group relative overflow-hidden rounded-2xl border-4 border-black shadow-[6px_6px_0_rgba(0,0,0,0.1)] hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all"
+                                                                            >
+                                                                                {/* Recipe Card */}
+                                                                                <div className="relative w-full h-48 bg-white/40 backdrop-blur-md overflow-hidden">
+                                                                                    <Image
+                                                                                        src={recipe.imageUrl}
+                                                                                        alt={recipe.title}
+                                                                                        fill
+                                                                                        className="object-cover group-hover:scale-110 transition-transform duration-300"
+                                                                                    />
+                                                                                    {/* Gradient Overlay */}
+                                                                                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
+
+                                                                                    {/* Title */}
+                                                                                    <div className="absolute bottom-0 left-0 right-0 p-4">
+                                                                                        <p className="font-black text-white uppercase text-lg leading-tight text-center">
+                                                                                            {recipe.title}
+                                                                                        </p>
+                                                                                    </div>
+                                                                                </div>
+                                                                            </button>
+                                                                        ))}
+                                                                    </div>
+                                                                </div>
+                                                            )}
+                                                        </>
+                                                    )}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                </TabsContent>
+                            </Tabs>
                         </CardContent>
                     </Card>
                 </div>

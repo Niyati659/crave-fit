@@ -4,6 +4,9 @@ import { Button } from '@/components/ui/button'
 import { Utensils, LayoutDashboard, Search, UtensilsCrossed, LogIn, LogOut, Sparkles, UserCircle, ChefHat } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
+import { Moon, Sun } from 'lucide-react'
+import { useTheme } from '@/hooks/useTheme'
+
 
 interface HeaderProps {
     currentView: string
@@ -17,6 +20,8 @@ interface HeaderProps {
 
 export function Header({ currentView, onNavigate, isLoggedIn, userData }: HeaderProps) {
     const router = useRouter()
+    const { theme, toggleTheme } = useTheme()
+
 
     const handleLogout = async () => {
         await supabase.auth.signOut()
@@ -109,6 +114,20 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
                         <span className="hidden lg:inline">{userData?.full_name?.split(' ')[0] || 'Profile'}</span>
                     </Button>
                 </nav>
+
+                <Button
+  variant="ghost"
+  size="icon"
+  onClick={toggleTheme}
+  className="rounded-full"
+>
+  {theme === 'dark' ? (
+    <Sun className="w-4 h-4" />
+  ) : (
+    <Moon className="w-4 h-4" />
+  )}
+</Button>
+
 
                 {/* Auth Actions */}
                 <div className="flex items-center gap-2">
