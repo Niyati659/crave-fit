@@ -56,7 +56,7 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
     const [activeMetric, setActiveMetric] = useState<string>('weight')
     const [selectedAllergies, setSelectedAllergies] = useState<string[]>([])
 
-    
+
     const [uploading, setUploading] = useState(false)
     const [profile, setProfile] = useState<ProfileData>({
         full_name: '',
@@ -74,7 +74,7 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
     })
 
     const fileInputRef = useRef<HTMLInputElement>(null)
-    
+
 
     useEffect(() => {
         async function getProfile() {
@@ -126,10 +126,10 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
     useEffect(() => {
         if (profile.allergies) {
             setSelectedAllergies(
-            profile.allergies.split(',').map(a => a.trim())
+                profile.allergies.split(',').map(a => a.trim())
             )
         }
-        }, [profile.allergies])
+    }, [profile.allergies])
 
     const toggleAllergy = (item: string) => {
         let updated
@@ -146,7 +146,7 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
             ...prev,
             allergies: updated.join(', ')
         }))
-        }
+    }
 
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -272,17 +272,17 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
         : null
 
     const ALLERGEN_OPTIONS = [
-            'Peanuts',
-            'Milk',
-            'Gluten',
-            'Soy',
-            'Eggs',
-            'Shellfish',
-            'Tree Nuts',
-            'Wheat',
-            'Yeast',
-            'Sesame'
-            ]
+        'Peanuts',
+        'Milk',
+        'Gluten',
+        'Soy',
+        'Eggs',
+        'Shellfish',
+        'Tree Nuts',
+        'Wheat',
+        'Yeast',
+        'Sesame'
+    ]
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-10 animate-in fade-in duration-500">
@@ -459,61 +459,61 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
                             {/* Allergies Section */}
                             <div className="space-y-4">
 
-                            <Label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                <Utensils className="w-3.5 h-3.5" />
-                                Dietary Restrictions & Allergies
-                            </Label>
+                                <Label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                    <Utensils className="w-3.5 h-3.5" />
+                                    Dietary Restrictions & Allergies
+                                </Label>
 
-                            {/* Chips */}
-                            <div className="flex flex-wrap gap-2">
+                                {/* Chips */}
+                                <div className="flex flex-wrap gap-2">
 
-                                {ALLERGEN_OPTIONS.map(item => {
-                                const active = selectedAllergies.includes(item)
+                                    {ALLERGEN_OPTIONS.map(item => {
+                                        const active = selectedAllergies.includes(item)
 
-                                return (
-                                    <button
-                                    key={item}
-                                    type="button"
-                                    onClick={() => toggleAllergy(item)}
-                                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all
+                                        return (
+                                            <button
+                                                key={item}
+                                                type="button"
+                                                onClick={() => toggleAllergy(item)}
+                                                className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all
                                     ${active
-                                        ? 'bg-red-500/15 border-red-500/40 text-red-600 shadow-sm'
-                                        : 'bg-white/40 border-border/40 text-muted-foreground hover:bg-red-500/10'
-                                        }`}
-                                    >
-                                    {item}
-                                    </button>
-                                )
-                                })}
-                            </div>
+                                                        ? 'bg-red-500/15 border-red-500/40 text-red-600 shadow-sm'
+                                                        : 'bg-white/40 border-border/40 text-muted-foreground hover:bg-red-500/10'
+                                                    }`}
+                                            >
+                                                {item}
+                                            </button>
+                                        )
+                                    })}
+                                </div>
 
-                            {/* Custom Add */}
-                            <Input
-                                placeholder="Add custom allergy..."
-                                onKeyDown={(e) => {
-                                if (e.key === 'Enter') {
-                                    e.preventDefault()
-                                    const value = (e.target as HTMLInputElement).value.trim()
+                                {/* Custom Add */}
+                                <Input
+                                    placeholder="Add custom allergy..."
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter') {
+                                            e.preventDefault()
+                                            const value = (e.target as HTMLInputElement).value.trim()
 
-                                    if (value && !selectedAllergies.includes(value)) {
-                                    const updated = [...selectedAllergies, value]
+                                            if (value && !selectedAllergies.includes(value)) {
+                                                const updated = [...selectedAllergies, value]
 
-                                    setSelectedAllergies(updated)
-                                    setProfile(prev => ({
-                                        ...prev,
-                                        allergies: updated.join(', ')
-                                    }))
+                                                setSelectedAllergies(updated)
+                                                setProfile(prev => ({
+                                                    ...prev,
+                                                    allergies: updated.join(', ')
+                                                }))
 
-                                    ;(e.target as HTMLInputElement).value = ''
-                                    }
-                                }
-                                }}
-                                className="h-12 rounded-2xl bg-white/60 border-border/40"
-                            />
+                                                    ; (e.target as HTMLInputElement).value = ''
+                                            }
+                                        }
+                                    }}
+                                    className="h-12 rounded-2xl bg-white/60 border-border/40"
+                                />
 
-                            <p className="text-[10px] text-muted-foreground italic px-1">
-                                Select or add allergies to personalize food recommendations.
-                            </p>
+                                <p className="text-[10px] text-muted-foreground italic px-1">
+                                    Select or add allergies to personalize food recommendations.
+                                </p>
 
                             </div>
 
@@ -726,152 +726,152 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
 
                     <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
 
-    {/* WEIGHT — BLUE */}
-    <div
-        onClick={() => setActiveMetric('weight')}
-        className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
+                        {/* WEIGHT — BLUE */}
+                        <div
+                            onClick={() => setActiveMetric('weight')}
+                            className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
         ${activeMetric === 'weight'
-                ? 'bg-gradient-to-br from-blue-500/25 via-white/40 to-blue-500/10 border-blue-500/40 shadow-lg scale-[1.02]'
-                : 'bg-gradient-to-br from-blue-500/15 via-white/40 to-blue-500/5 border-blue-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
-            }`}
-    >
-        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
-            <Scale className="w-5 h-5 text-blue-600" />
-        </div>
+                                    ? 'bg-gradient-to-br from-blue-500/25 via-white/40 to-blue-500/10 border-blue-500/40 shadow-lg scale-[1.02]'
+                                    : 'bg-gradient-to-br from-blue-500/15 via-white/40 to-blue-500/5 border-blue-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
+                                }`}
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
+                                <Scale className="w-5 h-5 text-blue-600" />
+                            </div>
 
-        <div className="text-3xl font-black text-foreground">
-            {profile.weight || '--'}
-            <span className="text-base ml-1 text-muted-foreground">kg</span>
-        </div>
+                            <div className="text-3xl font-black text-foreground">
+                                {profile.weight || '--'}
+                                <span className="text-base ml-1 text-muted-foreground">kg</span>
+                            </div>
 
-        {profile.weight && profile.target_weight && (
-            <p className="text-xs text-muted-foreground mt-1">
-                {Math.abs(
-                    Number(profile.weight) - Number(profile.target_weight)
-                ).toFixed(1)} kg to goal
-            </p>
-        )}
+                            {profile.weight && profile.target_weight && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                    {Math.abs(
+                                        Number(profile.weight) - Number(profile.target_weight)
+                                    ).toFixed(1)} kg to goal
+                                </p>
+                            )}
 
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
-            Weight
-        </p>
-    </div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
+                                Weight
+                            </p>
+                        </div>
 
-    {/* TARGET — PURPLE */}
-    <div
-        onClick={() => setActiveMetric('target')}
-        className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
+                        {/* TARGET — PURPLE */}
+                        <div
+                            onClick={() => setActiveMetric('target')}
+                            className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
         ${activeMetric === 'target'
-                ? 'bg-gradient-to-br from-purple-500/25 via-white/40 to-purple-500/10 border-purple-500/40 shadow-lg scale-[1.02]'
-                : 'bg-gradient-to-br from-purple-500/15 via-white/40 to-purple-500/5 border-purple-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
-            }`}
-    >
-        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
-            <Target className="w-5 h-5 text-purple-600" />
-        </div>
+                                    ? 'bg-gradient-to-br from-purple-500/25 via-white/40 to-purple-500/10 border-purple-500/40 shadow-lg scale-[1.02]'
+                                    : 'bg-gradient-to-br from-purple-500/15 via-white/40 to-purple-500/5 border-purple-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
+                                }`}
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
+                                <Target className="w-5 h-5 text-purple-600" />
+                            </div>
 
-        <div className="text-3xl font-black text-foreground">
-            {profile.target_weight || '--'}
-            <span className="text-base ml-1 text-muted-foreground">kg</span>
-        </div>
+                            <div className="text-3xl font-black text-foreground">
+                                {profile.target_weight || '--'}
+                                <span className="text-base ml-1 text-muted-foreground">kg</span>
+                            </div>
 
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
-            Target Weight
-        </p>
-    </div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
+                                Target Weight
+                            </p>
+                        </div>
 
-    {/* HEIGHT — CYAN */}
-    <div
-        onClick={() => setActiveMetric('height')}
-        className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
+                        {/* HEIGHT — CYAN */}
+                        <div
+                            onClick={() => setActiveMetric('height')}
+                            className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
         ${activeMetric === 'height'
-                ? 'bg-gradient-to-br from-cyan-500/25 via-white/40 to-cyan-500/10 border-cyan-500/40 shadow-lg scale-[1.02]'
-                : 'bg-gradient-to-br from-cyan-500/15 via-white/40 to-cyan-500/5 border-cyan-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
-            }`}
-    >
-        <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center mb-4">
-            <Ruler className="w-5 h-5 text-cyan-600" />
-        </div>
+                                    ? 'bg-gradient-to-br from-cyan-500/25 via-white/40 to-cyan-500/10 border-cyan-500/40 shadow-lg scale-[1.02]'
+                                    : 'bg-gradient-to-br from-cyan-500/15 via-white/40 to-cyan-500/5 border-cyan-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
+                                }`}
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center mb-4">
+                                <Ruler className="w-5 h-5 text-cyan-600" />
+                            </div>
 
-        <div className="text-3xl font-black text-foreground">
-            {profile.height || '--'}
-            <span className="text-base ml-1 text-muted-foreground">cm</span>
-        </div>
+                            <div className="text-3xl font-black text-foreground">
+                                {profile.height || '--'}
+                                <span className="text-base ml-1 text-muted-foreground">cm</span>
+                            </div>
 
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
-            Height
-        </p>
-    </div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
+                                Height
+                            </p>
+                        </div>
 
-    {/* AGE — ORANGE */}
-    <div
-        onClick={() => setActiveMetric('age')}
-        className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
+                        {/* AGE — ORANGE */}
+                        <div
+                            onClick={() => setActiveMetric('age')}
+                            className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
         ${activeMetric === 'age'
-                ? 'bg-gradient-to-br from-orange-500/25 via-white/40 to-orange-500/10 border-orange-500/40 shadow-lg scale-[1.02]'
-                : 'bg-gradient-to-br from-orange-500/15 via-white/40 to-orange-500/5 border-orange-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
-            }`}
-    >
-        <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center mb-4">
-            <Activity className="w-5 h-5 text-orange-600" />
-        </div>
+                                    ? 'bg-gradient-to-br from-orange-500/25 via-white/40 to-orange-500/10 border-orange-500/40 shadow-lg scale-[1.02]'
+                                    : 'bg-gradient-to-br from-orange-500/15 via-white/40 to-orange-500/5 border-orange-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
+                                }`}
+                        >
+                            <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center mb-4">
+                                <Activity className="w-5 h-5 text-orange-600" />
+                            </div>
 
-        <div className="text-3xl font-black text-foreground">
-            {profile.age || '--'}
-            <span className="text-base ml-1 text-muted-foreground">yrs</span>
-        </div>
+                            <div className="text-3xl font-black text-foreground">
+                                {profile.age || '--'}
+                                <span className="text-base ml-1 text-muted-foreground">yrs</span>
+                            </div>
 
-        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
-            Age
-        </p>
-    </div>
+                            <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
+                                Age
+                            </p>
+                        </div>
 
-</div>
-{profile.allergies && (
-  <div className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-white/40 to-red-500/5 backdrop-blur-xl p-6 shadow-sm">
+                    </div>
+                    {profile.allergies && (
+                        <div className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-white/40 to-red-500/5 backdrop-blur-xl p-6 shadow-sm">
 
-    {/* Background Glow */}
-    <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+                            {/* Background Glow */}
+                            <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
 
-    <div className="flex items-start gap-4">
+                            <div className="flex items-start gap-4">
 
-      {/* Icon Tile */}
-      <div className="w-12 h-12 rounded-2xl bg-red-500/15 flex items-center justify-center shadow-sm">
-        <Utensils className="w-6 h-6 text-red-600" />
-      </div>
+                                {/* Icon Tile */}
+                                <div className="w-12 h-12 rounded-2xl bg-red-500/15 flex items-center justify-center shadow-sm">
+                                    <Utensils className="w-6 h-6 text-red-600" />
+                                </div>
 
-      {/* Content */}
-      <div className="flex-1">
+                                {/* Content */}
+                                <div className="flex-1">
 
-        {/* Title */}
-        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
-          Active Sensitivities
-        </p>
+                                    {/* Title */}
+                                    <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+                                        Active Sensitivities
+                                    </p>
 
-        {/* Chips */}
-        <div className="flex flex-wrap gap-2 mt-3">
+                                    {/* Chips */}
+                                    <div className="flex flex-wrap gap-2 mt-3">
 
-          {profile.allergies.split(',').map((item, i) => (
-            <span
-              key={i}
-              className="px-3 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-600 border border-red-500/20 backdrop-blur-sm"
-            >
-              {item.trim()}
-            </span>
-          ))}
+                                        {profile.allergies.split(',').map((item, i) => (
+                                            <span
+                                                key={i}
+                                                className="px-3 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-600 border border-red-500/20 backdrop-blur-sm"
+                                            >
+                                                {item.trim()}
+                                            </span>
+                                        ))}
 
-        </div>
+                                    </div>
 
-        {/* Helper Note */}
-        <p className="text-[10px] text-muted-foreground mt-3 italic">
-          Meals containing these allergens will be filtered or flagged.
-        </p>
+                                    {/* Helper Note */}
+                                    <p className="text-[10px] text-muted-foreground mt-3 italic">
+                                        Meals containing these allergens will be filtered or flagged.
+                                    </p>
 
-      </div>
+                                </div>
 
-    </div>
-  </div>
-)}
+                            </div>
+                        </div>
+                    )}
 
                 </div>
             )}

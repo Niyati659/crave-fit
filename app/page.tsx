@@ -66,8 +66,7 @@ export default function Page() {
         setIsLoggedIn(true)
         fetchProfile(session.user.id)
 
-        // ✅ MAGIC FIX — OPEN DASHBOARD
-        setCurrentView('dashboard')
+        setCurrentView((prev) => (prev === 'landing' ? 'dashboard' : prev))
       }
     }
 
@@ -76,17 +75,20 @@ export default function Page() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+      console.log('🔐 Auth State Change:', event)
 
-      if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+      if (event === 'SIGNED_IN') {
         setIsLoggedIn(true)
-
         if (session) {
           fetchProfile(session.user.id)
-
-          // ✅ MAGIC FIX — OPEN DASHBOARD
-          setCurrentView('dashboard')
+          // Only auto-navigate to dashboard if we are on landing
+          setCurrentView((prev) => (prev === 'landing' ? 'dashboard' : prev))
         }
-
+      } else if (event === 'TOKEN_REFRESHED') {
+        setIsLoggedIn(true)
+        if (session) {
+          fetchProfile(session.user.id)
+        }
       } else if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false)
         setUserData(null)
@@ -100,10 +102,12 @@ export default function Page() {
   }, [])
 
   const handleNavigate = (view: PageView) => {
+    console.log('🚢 Navigating to:', view)
 
     if (view === 'recommendations') return
 
     if (view !== 'landing' && !isLoggedIn) {
+      console.warn('🔒 Protected view blocked - not logged in:', view)
       router.push('/auth/login')
       return
     }
