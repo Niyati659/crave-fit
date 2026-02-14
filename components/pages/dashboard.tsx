@@ -56,6 +56,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
   const [showDeficiencyDetails, setShowDeficiencyDetails] = useState(false)
   const [selectedRecipeName, setSelectedRecipeName] = useState<string | null>(null)
   const [showChefFriend, setShowChefFriend] = useState(false)
+  const [selectedNutrient, setSelectedNutrient] = useState<any>(null)
 
   useEffect(() => {
     const { personal, general } = generateInsights(userData, weeklyData, waterData, allMeals)
@@ -351,7 +352,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
           ) : (
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
-                            {/* 🧠 DAILY + CRAVING INTELLIGENCE WRAPPER */}
+              {/* 🧠 DAILY + CRAVING INTELLIGENCE WRAPPER */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
 
                 {/* LEFT — DAILY INTELLIGENCE */}
@@ -420,296 +421,239 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                   </div>
                 </div>
 
-                {/* RIGHT — CRAVING INTELLIGENCE */}
-                <div className="space-y-6">
-
+                {/* RIGHT — BEHAVIORAL AI REPORT (compact, scrollable recipes) */}
+                <div className="space-y-6 flex flex-col">
                   <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
-                    Craving Intelligence
+                    Behavioral AI Report
                   </h2>
 
-                  {cravingInsight && cravingInsight.pattern !== 'balanced' && cravingInsight.deficiencies.length > 0 && (
-                    <Card className={`p-0 overflow-hidden border shadow-sm ${
-                      cravingInsight.pattern === 'sweet'
-                        ? 'bg-gradient-to-br from-pink-50 via-rose-50 to-orange-50 border-pink-200'
-                        : 'bg-gradient-to-br from-indigo-50 via-purple-50 to-blue-50 border-indigo-200'
-                    }`}>
+                  <Card
+                    className={`p-0 overflow-hidden border shadow-sm flex-1 flex flex-col bg-gradient-to-br ${behavioralStatus.type === 'lethargic'
+                      ? 'from-amber-50 to-amber-100 border-amber-200'
+                      : behavioralStatus.type === 'stressed'
+                        ? 'from-sky-50 to-sky-100 border-sky-200'
+                        : behavioralStatus.type === 'consistent'
+                          ? 'from-purple-50 to-purple-100 border-purple-200'
+                          : 'from-emerald-50 to-emerald-100 border-emerald-200'
+                      }`}
+                  >
+                    {/* Header */}
+                    <div className="px-6 pt-5 pb-3 space-y-2">
+                      <div className="flex items-center gap-2">
+                        <div className={`p-1.5 rounded-lg ${behavioralStatus.type === 'lethargic' ? 'bg-amber-200'
+                          : behavioralStatus.type === 'stressed' ? 'bg-sky-200'
+                            : behavioralStatus.type === 'consistent' ? 'bg-purple-200'
+                              : 'bg-emerald-200'
+                          }`}>
+                          <Utensils className="w-3.5 h-3.5 text-slate-700" />
+                        </div>
+                        <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Current Analysis</p>
+                      </div>
+                      <h3 className={`text-sm font-bold leading-snug ${behavioralStatus.type === 'lethargic' ? 'text-amber-700'
+                        : behavioralStatus.type === 'stressed' ? 'text-sky-700'
+                          : behavioralStatus.type === 'consistent' ? 'text-purple-700'
+                            : 'text-emerald-700'
+                        }`}>
+                        {behavioralStatus.message || 'Analyzing your patterns...'}
+                      </h3>
+                      <p className="text-[10px] text-muted-foreground">
+                        Based on your recent calorie intake, goals & mood insights
+                      </p>
+                    </div>
 
-                      {/* Header */}
-                      <div className="px-6 py-4 flex items-center gap-3">
-                        <AlertTriangle className="w-5 h-5 text-pink-600" />
-                        <p className="text-sm font-medium text-slate-700">
-                          {cravingInsight.message}
+                    {/* Scrollable Recipes */}
+                    <div className="px-6 pb-5 flex-1 overflow-hidden">
+                      {isRefreshingRecs ? (
+                        <div className="flex flex-col gap-2">
+                          {[1, 2, 3].map(i => (
+                            <div key={i} className="h-14 rounded-xl bg-white/50 animate-pulse border" />
+                          ))}
+                        </div>
+                      ) : recommendations.length > 0 ? (
+                        <div className="h-full max-h-[180px] overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'thin' }}>
+                          {recommendations.map((rec, i) => (
+                            <div
+                              key={i}
+                              onClick={() => {
+                                setSelectedRecipeName(rec.name)
+                                setShowChefFriend(true)
+                              }}
+                              className="w-full bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-white/60 hover:bg-white hover:shadow-md cursor-pointer transition-all flex items-center justify-between"
+                            >
+                              <div>
+                                <h4 className="font-bold text-slate-900 text-xs leading-snug">{rec.name}</h4>
+                                <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">{rec.calories} kcal</p>
+                              </div>
+                              <div className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                                <ArrowRight className="w-3 h-3 opacity-70" />
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="py-4 flex items-center justify-center border-2 border-dashed rounded-xl">
+                          <p className="text-[10px] text-muted-foreground italic">Gathering more intelligence…</p>
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+
+                </div>
+
+              </div>
+
+              {/* Analytics Section — Craving + Charts */}
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
+
+                {/* LEFT — CRAVING ANALYSIS REPORT (full size, all info inline) */}
+                <div className="flex flex-col">
+
+                  {cravingInsight && cravingInsight.pattern !== 'balanced' && cravingInsight.deficiencies.length > 0 ? (
+                    <Card className={`p-8 border shadow-sm h-full flex flex-col gap-6 bg-gradient-to-br ${cravingInsight.pattern === 'sweet'
+                      ? 'from-pink-50 via-rose-50 to-orange-50 border-pink-200'
+                      : 'from-indigo-50 via-purple-50 to-blue-50 border-indigo-200'
+                      }`}>
+
+                      {/* Title */}
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-lg bg-pink-200">
+                          <AlertTriangle className="w-4 h-4 text-pink-700" />
+                        </div>
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">
+                          {cravingInsight.pattern === 'sweet' ? 'Sweet' : 'Savory'} Craving Analysis
+                        </h2>
+                      </div>
+
+                      {/* Pattern Summary */}
+                      <div className="space-y-3">
+                        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                          Pattern Detected
                         </p>
-                        <div className="ml-auto text-2xl font-black text-pink-600">
-                          {cravingInsight.percentage}%
+                        <h3 className="text-xl font-bold leading-snug text-pink-700">
+                          🔍 You've chosen {cravingInsight.pattern === 'sweet' ? 'Sweet' : 'Savory'} in {cravingInsight.count} of your last {cravingInsight.total} quizzes ({cravingInsight.percentage}%).
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                          This could indicate nutrient gaps. Here are the possible deficiencies and foods to replenish them.
+                        </p>
+                      </div>
+
+                      {/* All Nutrient Deficiencies — shown inline */}
+                      <div className="space-y-4 flex-1 overflow-hidden">
+                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                          Possible Nutrient Gaps & Foods to Replenish
+                        </p>
+
+                        <div className="max-h-[280px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin' }}>
+                          <div className="grid grid-cols-1 gap-3">
+                            {cravingInsight.deficiencies.map((d, i) => (
+                              <div
+                                key={i}
+                                className="bg-white/70 backdrop-blur-sm border border-pink-100 rounded-xl p-4 space-y-2 hover:shadow-md transition-all"
+                              >
+                                <div className="flex items-center gap-2">
+                                  <span className="text-lg">{d.emoji}</span>
+                                  <h4 className="text-xs font-black text-pink-600 uppercase tracking-tight">
+                                    {d.nutrient}
+                                  </h4>
+                                </div>
+                                <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                                  {d.description}
+                                </p>
+                                {d.foods && d.foods.length > 0 && (
+                                  <div className="overflow-x-auto pt-1" style={{ scrollbarWidth: 'thin' }}>
+                                    <div className="flex gap-1.5 pb-1">
+                                      {d.foods.map((food: string, idx: number) => (
+                                        <span key={idx} className="shrink-0 bg-white text-pink-700 border border-pink-100 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                          {food}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            ))}
+                          </div>
                         </div>
                       </div>
 
-                      {/* Nutrient tags preview */}
-              <div className="p-6 space-y-4">
-
-                <div className="flex flex-wrap gap-2">
-                  {cravingInsight.deficiencies.map((d, i) => (
-                    <span
-                      key={i}
-                      className="text-xs font-bold px-3 py-1 rounded-full bg-white border"
-                    >
-                      {d.nutrient}
-                    </span>
-                  ))}
-                </div>
-
-                {/* CTA Button — UI only */}
-                <button
-                  className="
-                      w-full h-10 rounded-xl font-bold text-xs
-                      bg-white text-pink-600
-                      border border-pink-200
-                      hover:bg-pink-50
-                      shadow-sm
-                      transition-all
-                      "
-
-                >
-                  ✨ Find Foods to Replenish These Nutrients
-                </button>
-
-              </div>
+                    </Card>
+                  ) : (
+                    <Card className="p-8 border shadow-sm h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
+                      <p className="text-sm text-muted-foreground italic">Your cravings look well-balanced! 🎉</p>
                     </Card>
                   )}
 
                 </div>
 
+
+                {/* RIGHT — CHARTS STACK */}
+                <div className="flex flex-col gap-6 h-full">
+
+                  {/* Water Chart */}
+                  <Card className="flex-1 p-6 bg-white border shadow-sm rounded-xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold uppercase text-slate-700">
+                        Water Intake
+                      </h3>
+                      <Droplet className="w-5 h-5 text-sky-500" />
+                    </div>
+
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={waterData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="day" />
+                          <YAxis hide />
+                          <Tooltip />
+                          <Bar dataKey="ml" radius={[8, 8, 0, 0]}>
+                            {waterData.map((entry, i) => (
+                              <Cell
+                                key={i}
+                                fill={entry.ml >= 2000 ? '#0ea5e9' : '#bae6fd'}
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+
+                  {/* Calories Chart */}
+                  <Card className="flex-1 p-6 bg-white border shadow-sm rounded-xl">
+                    <div className="flex items-center justify-between mb-4">
+                      <h3 className="text-sm font-bold uppercase text-slate-700">
+                        Calories Weekly
+                      </h3>
+                      <Flame className="w-5 h-5 text-emerald-500" />
+                    </div>
+
+                    <div className="h-48">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={weeklyData}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <XAxis dataKey="day" />
+                          <YAxis hide />
+                          <Tooltip />
+                          <Bar dataKey="calories" radius={[8, 8, 0, 0]}>
+                            {weeklyData.map((entry, i) => (
+                              <Cell
+                                key={i}
+                                fill={
+                                  entry.calories > entry.goal
+                                    ? '#ef4444'
+                                    : '#10b981'
+                                }
+                              />
+                            ))}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </Card>
+
+                </div>
+
               </div>
-              
-                  {/* Analytics Section — Behavioral + Charts */}
-<div className="grid grid-cols-1 xl:grid-cols-2 gap-6 items-stretch">
-
-  {/* LEFT — Behavioral Report */}
-  <div className="flex flex-col">
-
-   
-
-    {/* Behavioral Card */}
-    <Card
-  className={`
-    p-8 border shadow-sm h-full
-    flex flex-col gap-8
-    bg-gradient-to-br
-    ${
-      behavioralStatus.type === 'lethargic'
-        ? 'from-amber-50 to-amber-100 border-amber-200'
-        : behavioralStatus.type === 'stressed'
-        ? 'from-sky-50 to-sky-100 border-sky-200'
-        : behavioralStatus.type === 'consistent'
-        ? 'from-purple-50 to-purple-100 border-purple-200'
-        : 'from-emerald-50 to-emerald-100 border-emerald-200'
-    }
-  `}
->
-
-      {/* Title INSIDE card */}
-<div className="flex items-center gap-3 mb-6">
-
-  <div className={`
-    p-2 rounded-lg
-    ${
-      behavioralStatus.type === 'lethargic'
-        ? 'bg-amber-200'
-        : behavioralStatus.type === 'stressed'
-        ? 'bg-sky-200'
-        : behavioralStatus.type === 'consistent'
-        ? 'bg-purple-200'
-        : 'bg-emerald-200'
-    }
-  `}>
-    <Utensils className="w-4 h-4 text-slate-700" />
-  </div>
-
-  <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">
-    Behavioral AI Report
-  </h2>
-
-</div>
-
-
-      {/* TOP — STATUS */}
-      <div className="space-y-4">
-
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
-          Current Analysis
-        </p>
-
-        <h3
-          className={`text-xl font-bold leading-snug ${
-            behavioralStatus.type === 'lethargic'
-              ? 'text-amber-700'
-              : behavioralStatus.type === 'stressed'
-              ? 'text-sky-700'
-              : behavioralStatus.type === 'consistent'
-              ? 'text-purple-700'
-              : 'text-emerald-700'
-          }`}
-        >
-          {behavioralStatus.message || 'Analyzing your patterns...'}
-        </h3>
-
-        <p className="text-xs text-muted-foreground">
-          Based on your recent calorie intake, goals & mood insights
-        </p>
-
-      </div>
-
-      {/* BOTTOM — RECIPES */}
-{/* BOTTOM — RECIPES */}
-<div className="mt-6">
-
-  {isRefreshingRecs ? (
-
-    <div className="flex flex-col gap-4">
-      {[1, 2, 3].map(i => (
-        <div
-          key={i}
-          className="h-20 rounded-xl bg-white/50 animate-pulse border"
-        />
-      ))}
-    </div>
-
-  ) : recommendations.length > 0 ? (
-
-    <div className="flex flex-col gap-4">
-
-      {recommendations.map((rec, i) => (
-
-        <div
-          key={i}
-          onClick={() => {
-            setSelectedRecipeName(rec.name)
-            setShowChefFriend(true)
-          }}
-          className="
-            w-full bg-white/80 backdrop-blur-sm
-            p-5 rounded-xl border border-white/60
-            hover:bg-white hover:shadow-md
-            cursor-pointer transition-all
-            flex items-center justify-between
-          "
-        >
-
-          {/* LEFT — Text */}
-          <div>
-            <h4 className="font-bold text-slate-900 text-sm leading-snug">
-              {rec.name}
-            </h4>
-
-            <p className="text-xs font-semibold text-muted-foreground mt-1">
-              {rec.calories} kcal
-            </p>
-          </div>
-
-          {/* RIGHT — Arrow */}
-          <div className="
-            w-8 h-8 rounded-full
-            bg-white border border-slate-200
-            flex items-center justify-center
-            group-hover:bg-slate-900 group-hover:text-white
-            transition-all
-          ">
-            <ArrowRight className="w-3.5 h-3.5 opacity-70" />
-          </div>
-
-        </div>
-
-      ))}
-
-    </div>
-
-  ) : (
-
-    <div className="py-6 flex items-center justify-center border-2 border-dashed rounded-xl">
-      <p className="text-xs text-muted-foreground italic">
-        Gathering more intelligence…
-      </p>
-    </div>
-
-  )}
-
-</div>
-
-
-    </Card>
-
-  </div>
-
-
-  {/* RIGHT — CHARTS STACK */}
-  <div className="flex flex-col gap-6 h-full">
-
-    {/* Water Chart */}
-    <Card className="flex-1 p-6 bg-white border shadow-sm rounded-xl">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold uppercase text-slate-700">
-          Water Intake
-        </h3>
-        <Droplet className="w-5 h-5 text-sky-500" />
-      </div>
-
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={waterData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="day" />
-            <YAxis hide />
-            <Tooltip />
-            <Bar dataKey="ml" radius={[8, 8, 0, 0]}>
-              {waterData.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={entry.ml >= 2000 ? '#0ea5e9' : '#bae6fd'}
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </Card>
-
-    {/* Calories Chart */}
-    <Card className="flex-1 p-6 bg-white border shadow-sm rounded-xl">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-bold uppercase text-slate-700">
-          Calories Weekly
-        </h3>
-        <Flame className="w-5 h-5 text-emerald-500" />
-      </div>
-
-      <div className="h-48">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={weeklyData}>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} />
-            <XAxis dataKey="day" />
-            <YAxis hide />
-            <Tooltip />
-            <Bar dataKey="calories" radius={[8, 8, 0, 0]}>
-              {weeklyData.map((entry, i) => (
-                <Cell
-                  key={i}
-                  fill={
-                    entry.calories > entry.goal
-                      ? '#ef4444'
-                      : '#10b981'
-                  }
-                />
-              ))}
-            </Bar>
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-    </Card>
-
-  </div>
-
-</div>
 
 
               {/* Top Stats Cards */}
