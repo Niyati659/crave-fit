@@ -349,7 +349,6 @@ export function getProgressPercentage(current: number, goal: number): number {
   if (goal === 0) return 0
   return Math.min(100, Math.round((current / goal) * 100))
 }
-// 🔥 NEW — Personalized Quick Meals
 export function getTopMeals(
   meals: MealEntry[],
   limit = 4
