@@ -292,12 +292,14 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
   const hasData = weeklyData.some(d => d.calories > 0)
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-primary/5">
+    <div className="min-h-screen bg-background">
+
       {/* Header */}
-      <header className="sticky top-0 z-20 bg-white/80 backdrop-blur-sm border-b border-border/50 py-6 px-4 sm:px-6 lg:px-8 shadow-sm">
+      <header className="sticky top-0 z-20 bg-background/80 backdrop-blur-sm py-6 px-4 sm:px-6 lg:px-8">
+
         <div className="max-w-6xl mx-auto flex items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-slate-100 flex items-center justify-center border-2 border-border shadow-sm">
+            <div className="w-14 h-14 rounded-2xl overflow-hidden bg-muted flex items-center justify-center border-2 border-border shadow-sm">
               {userData?.avatar_url ? (
                 <img src={userData.avatar_url} alt="Profile" className="w-full h-full object-cover" />
               ) : (
@@ -308,18 +310,9 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
               <h1 className="text-3xl font-bold text-foreground">
                 Welcome, {userData?.full_name?.split(' ')[0] || 'User'}
               </h1>
-              <p className="text-sm text-muted-foreground mt-1">Your health dashboard</p>
+
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleLogout}
-            className="text-muted-foreground hover:text-red-600 hover:bg-red-50"
-            title="Sign out"
-          >
-            <LogOut className="w-5 h-5" />
-          </Button>
         </div>
       </header>
 
@@ -330,7 +323,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
           {!hasData ? (
             /* Empty State with Health Fact */
             <div className="space-y-6">
-              <Card className="p-8 bg-gradient-to-br from-blue-50 to-blue-100 border-blue-200 shadow-sm">
+              <Card className="p-8 bg-gradient-to-br from-blue-100/60 to-blue-200/40 dark:from-blue-900/40 dark:to-blue-800/30 border-border shadow-sm">
                 <div className="flex items-start gap-4">
                   <div className="p-4 bg-blue-500/20 rounded-full">
                     <Utensils className="w-8 h-8 text-blue-600" />
@@ -358,23 +351,25 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                 {/* LEFT — DAILY INTELLIGENCE */}
                 <div className="space-y-6">
 
-                  <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
+                  <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
                     Daily Intelligence
                   </h2>
 
                   <div className="grid grid-cols-1 gap-6">
 
                     {/* Personal Insight */}
-                    <div className="bg-emerald-50/50 border border-emerald-100 rounded-2xl p-4 flex items-center justify-between gap-4">
+                    <div className="bg-emerald-100/60 dark:bg-emerald-900/30
+ border border-border rounded-2xl p-4 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="p-2 bg-emerald-100 rounded-lg">
+                        <div className="p-2 bg-emerald-100 dark:bg-emerald-900/40
+ rounded-lg">
                           <UserCircle2 className="w-5 h-5 text-emerald-600" />
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-wider font-bold text-emerald-600 mb-0.5">
                             Your Progress
                           </p>
-                          <p className="text-sm font-medium text-slate-700">
+                          <p className="text-sm font-medium text-foreground">
                             {personalTip?.text || "Keep tracking to unlock personalized insights!"}
                           </p>
                         </div>
@@ -393,16 +388,16 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     </div>
 
                     {/* Pro Tip */}
-                    <div className="bg-blue-50/50 border border-blue-100 rounded-2xl p-4 flex items-center justify-between gap-4">
+                    <div className="bg-blue-100/60 dark:bg-blue-900/30 border border-border rounded-2xl p-4 flex items-center justify-between gap-4">
                       <div className="flex items-center gap-4">
-                        <div className="p-2 bg-blue-100 rounded-lg">
+                        <div className="p-2 bg-blue-100 dark:bg-blue-900/40 rounded-lg">
                           <Lightbulb className="w-5 h-5 text-blue-600" />
                         </div>
                         <div>
                           <p className="text-[10px] uppercase tracking-wider font-bold text-blue-600 mb-0.5">
                             Pro Tip
                           </p>
-                          <p className="text-sm font-medium text-slate-700">
+                          <p className="text-sm font-medium text-foreground">
                             {generalTip?.text || "Consistency is the secret to a healthy lifestyle!"}
                           </p>
                         </div>
@@ -423,36 +418,36 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
 
                 {/* RIGHT — BEHAVIORAL AI REPORT (compact, scrollable recipes) */}
                 <div className="space-y-6 flex flex-col">
-                  <h2 className="text-sm font-bold text-slate-700 uppercase tracking-wider">
+                  <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
                     Behavioral AI Report
                   </h2>
 
                   <Card
-                    className={`p-0 overflow-hidden border shadow-sm flex-1 flex flex-col bg-gradient-to-br ${behavioralStatus.type === 'lethargic'
-                      ? 'from-amber-50 to-amber-100 border-amber-200'
+                    className={`p-0 overflow-hidden border-border shadow-sm flex-1 flex flex-col bg-gradient-to-br ${behavioralStatus.type === 'lethargic'
+                      ? 'from-amber-100/60 to-amber-200/40 dark:from-amber-900/40 dark:to-amber-800/30'
                       : behavioralStatus.type === 'stressed'
-                        ? 'from-sky-50 to-sky-100 border-sky-200'
+                        ? 'from-sky-100/60 to-sky-200/40 dark:from-sky-900/40 dark:to-sky-800/30'
                         : behavioralStatus.type === 'consistent'
-                          ? 'from-purple-50 to-purple-100 border-purple-200'
-                          : 'from-emerald-50 to-emerald-100 border-emerald-200'
+                          ? 'from-purple-100/60 to-purple-200/40 dark:from-purple-900/40 dark:to-purple-800/30'
+                          : 'from-emerald-100/60 to-emerald-200/40 dark:from-emerald-900/40 dark:to-emerald-800/30'
                       }`}
                   >
                     {/* Header */}
                     <div className="px-6 pt-5 pb-3 space-y-2">
                       <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-lg ${behavioralStatus.type === 'lethargic' ? 'bg-amber-200'
-                          : behavioralStatus.type === 'stressed' ? 'bg-sky-200'
-                            : behavioralStatus.type === 'consistent' ? 'bg-purple-200'
-                              : 'bg-emerald-200'
+                        <div className={`p-1.5 rounded-lg ${behavioralStatus.type === 'lethargic' ? 'bg-amber-200 dark:bg-amber-800/50'
+                          : behavioralStatus.type === 'stressed' ? 'bg-sky-200 dark:bg-sky-800/50'
+                            : behavioralStatus.type === 'consistent' ? 'bg-purple-200 dark:bg-purple-800/50'
+                              : 'bg-emerald-200 dark:bg-emerald-800/50'
                           }`}>
-                          <Utensils className="w-3.5 h-3.5 text-slate-700" />
+                          <Utensils className="w-3.5 h-3.5 text-foreground" />
                         </div>
                         <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Current Analysis</p>
                       </div>
-                      <h3 className={`text-sm font-bold leading-snug ${behavioralStatus.type === 'lethargic' ? 'text-amber-700'
-                        : behavioralStatus.type === 'stressed' ? 'text-sky-700'
-                          : behavioralStatus.type === 'consistent' ? 'text-purple-700'
-                            : 'text-emerald-700'
+                      <h3 className={`text-sm font-bold leading-snug ${behavioralStatus.type === 'lethargic' ? 'text-amber-700 dark:text-amber-400'
+                        : behavioralStatus.type === 'stressed' ? 'text-sky-700 dark:text-sky-400'
+                          : behavioralStatus.type === 'consistent' ? 'text-purple-700 dark:text-purple-400'
+                            : 'text-emerald-700 dark:text-emerald-400'
                         }`}>
                         {behavioralStatus.message || 'Analyzing your patterns...'}
                       </h3>
@@ -466,7 +461,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                       {isRefreshingRecs ? (
                         <div className="flex flex-col gap-2">
                           {[1, 2, 3].map(i => (
-                            <div key={i} className="h-14 rounded-xl bg-white/50 animate-pulse border" />
+                            <div key={i} className="h-14 rounded-xl bg-card/50 animate-pulse border border-border" />
                           ))}
                         </div>
                       ) : recommendations.length > 0 ? (
@@ -478,28 +473,26 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                                 setSelectedRecipeName(rec.name)
                                 setShowChefFriend(true)
                               }}
-                              className="w-full bg-white/80 backdrop-blur-sm p-3 rounded-xl border border-white/60 hover:bg-white hover:shadow-md cursor-pointer transition-all flex items-center justify-between"
+                              className="w-full bg-card/80 backdrop-blur-sm p-3 rounded-xl border border-border/60 hover:bg-card hover:shadow-md cursor-pointer transition-all flex items-center justify-between"
                             >
                               <div>
-                                <h4 className="font-bold text-slate-900 text-xs leading-snug">{rec.name}</h4>
+                                <h4 className="font-bold text-foreground text-xs leading-snug">{rec.name}</h4>
                                 <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">{rec.calories} kcal</p>
                               </div>
-                              <div className="w-6 h-6 rounded-full bg-white border border-slate-200 flex items-center justify-center shrink-0">
+                              <div className="w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center shrink-0">
                                 <ArrowRight className="w-3 h-3 opacity-70" />
                               </div>
                             </div>
                           ))}
                         </div>
                       ) : (
-                        <div className="py-4 flex items-center justify-center border-2 border-dashed rounded-xl">
+                        <div className="py-4 flex items-center justify-center border-2 border-dashed border-border rounded-xl">
                           <p className="text-[10px] text-muted-foreground italic">Gathering more intelligence…</p>
                         </div>
                       )}
                     </div>
                   </Card>
-
                 </div>
-
               </div>
 
               {/* Analytics Section — Craving + Charts */}
@@ -509,17 +502,17 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                 <div className="flex flex-col">
 
                   {cravingInsight && cravingInsight.pattern !== 'balanced' && cravingInsight.deficiencies.length > 0 ? (
-                    <Card className={`p-8 border shadow-sm h-full flex flex-col gap-6 bg-gradient-to-br ${cravingInsight.pattern === 'sweet'
-                      ? 'from-pink-50 via-rose-50 to-orange-50 border-pink-200'
-                      : 'from-indigo-50 via-purple-50 to-blue-50 border-indigo-200'
+                    <Card className={`p-8 border-border shadow-sm h-full flex flex-col gap-6 bg-gradient-to-br ${cravingInsight.pattern === 'sweet'
+                      ? 'from-pink-100/60 via-rose-100/40 to-orange-100/40 dark:from-pink-900/40 dark:via-rose-900/30 dark:to-orange-900/30'
+                      : 'from-indigo-100/60 via-purple-100/40 to-blue-100/40 dark:from-indigo-900/40 dark:via-purple-900/30 dark:to-blue-900/30'
                       }`}>
 
                       {/* Title */}
                       <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-lg bg-pink-200">
-                          <AlertTriangle className="w-4 h-4 text-pink-700" />
+                        <div className="p-2 rounded-lg bg-pink-200 dark:bg-pink-800/50">
+                          <AlertTriangle className="w-4 h-4 text-pink-700 dark:text-pink-400" />
                         </div>
-                        <h2 className="text-sm font-bold uppercase tracking-wider text-slate-700">
+                        <h2 className="text-sm font-bold uppercase tracking-wider text-foreground">
                           {cravingInsight.pattern === 'sweet' ? 'Sweet' : 'Savory'} Craving Analysis
                         </h2>
                       </div>
@@ -529,7 +522,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
                           Pattern Detected
                         </p>
-                        <h3 className="text-xl font-bold leading-snug text-pink-700">
+                        <h3 className="text-xl font-bold leading-snug text-pink-700 dark:text-pink-400">
                           🔍 You've chosen {cravingInsight.pattern === 'sweet' ? 'Sweet' : 'Savory'} in {cravingInsight.count} of your last {cravingInsight.total} quizzes ({cravingInsight.percentage}%).
                         </h3>
                         <p className="text-xs text-muted-foreground">
@@ -539,7 +532,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
 
                       {/* All Nutrient Deficiencies — shown inline */}
                       <div className="space-y-4 flex-1 overflow-hidden">
-                        <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">
+                        <p className="text-[10px] font-black text-muted-foreground uppercase tracking-widest">
                           Possible Nutrient Gaps & Foods to Replenish
                         </p>
 
@@ -548,22 +541,22 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                             {cravingInsight.deficiencies.map((d, i) => (
                               <div
                                 key={i}
-                                className="bg-white/70 backdrop-blur-sm border border-pink-100 rounded-xl p-4 space-y-2 hover:shadow-md transition-all"
+                                className="bg-card/70 backdrop-blur-sm border border-border rounded-xl p-4 space-y-2 hover:shadow-md transition-all"
                               >
                                 <div className="flex items-center gap-2">
                                   <span className="text-lg">{d.emoji}</span>
-                                  <h4 className="text-xs font-black text-pink-600 uppercase tracking-tight">
+                                  <h4 className="text-xs font-black text-pink-600 dark:text-pink-400 uppercase tracking-tight">
                                     {d.nutrient}
                                   </h4>
                                 </div>
-                                <p className="text-[11px] text-slate-600 leading-relaxed font-medium">
+                                <p className="text-[11px] text-muted-foreground leading-relaxed font-medium">
                                   {d.description}
                                 </p>
                                 {d.foods && d.foods.length > 0 && (
                                   <div className="overflow-x-auto pt-1" style={{ scrollbarWidth: 'thin' }}>
                                     <div className="flex gap-1.5 pb-1">
                                       {d.foods.map((food: string, idx: number) => (
-                                        <span key={idx} className="shrink-0 bg-white text-pink-700 border border-pink-100 px-2 py-0.5 rounded-md text-[10px] font-bold">
+                                        <span key={idx} className="shrink-0 bg-card text-pink-700 dark:text-pink-400 border border-border px-2 py-0.5 rounded-md text-[10px] font-bold">
                                           {food}
                                         </span>
                                       ))}
@@ -578,7 +571,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
 
                     </Card>
                   ) : (
-                    <Card className="p-8 border shadow-sm h-full flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 border-slate-200">
+                    <Card className="p-8 border-border shadow-sm h-full flex items-center justify-center bg-gradient-to-br from-muted/50 to-muted">
                       <p className="text-sm text-muted-foreground italic">Your cravings look well-balanced! 🎉</p>
                     </Card>
                   )}
@@ -590,9 +583,9 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                 <div className="flex flex-col gap-6 h-full">
 
                   {/* Water Chart */}
-                  <Card className="flex-1 p-6 bg-white border shadow-sm rounded-xl">
+                  <Card className="flex-1 p-6 bg-card border-border shadow-sm rounded-xl">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-bold uppercase text-slate-700">
+                      <h3 className="text-sm font-bold uppercase text-foreground">
                         Water Intake
                       </h3>
                       <Droplet className="w-5 h-5 text-sky-500" />
@@ -601,15 +594,19 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={waterData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="day" />
                           <YAxis hide />
-                          <Tooltip />
+                          <Tooltip contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '0.75rem'
+                          }} />
                           <Bar dataKey="ml" radius={[8, 8, 0, 0]}>
                             {waterData.map((entry, i) => (
                               <Cell
                                 key={i}
-                                fill={entry.ml >= 2000 ? '#0ea5e9' : '#bae6fd'}
+                                fill={entry.ml >= 2000 ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
                               />
                             ))}
                           </Bar>
@@ -619,9 +616,9 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                   </Card>
 
                   {/* Calories Chart */}
-                  <Card className="flex-1 p-6 bg-white border shadow-sm rounded-xl">
+                  <Card className="flex-1 p-6 bg-card border-border shadow-sm rounded-xl">
                     <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-sm font-bold uppercase text-slate-700">
+                      <h3 className="text-sm font-bold uppercase text-foreground">
                         Calories Weekly
                       </h3>
                       <Flame className="w-5 h-5 text-emerald-500" />
@@ -630,19 +627,19 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     <div className="h-48">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={weeklyData}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                          <CartesianGrid stroke="hsl(var(--border))" strokeDasharray="3 3" vertical={false} />
                           <XAxis dataKey="day" />
                           <YAxis hide />
-                          <Tooltip />
+                          <Tooltip contentStyle={{
+                            backgroundColor: 'hsl(var(--card))',
+                            border: '1px solid hsl(var(--border))',
+                            borderRadius: '0.75rem'
+                          }} />
                           <Bar dataKey="calories" radius={[8, 8, 0, 0]}>
                             {weeklyData.map((entry, i) => (
                               <Cell
                                 key={i}
-                                fill={
-                                  entry.calories > entry.goal
-                                    ? '#ef4444'
-                                    : '#10b981'
-                                }
+                                fill={entry.calories > entry.goal ? 'hsl(var(--destructive))' : 'hsl(var(--primary))'}
                               />
                             ))}
                           </Bar>
@@ -659,7 +656,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
               {/* Top Stats Cards */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {/* Current Weight */}
-                <Card className="p-6 bg-white border-border shadow-sm">
+                <Card className="p-6 bg-card border-border shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Current Weight</p>
@@ -673,14 +670,14 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                         <p className="text-xs text-muted-foreground mt-2">Goal: {userData.target_weight} kg</p>
                       )}
                     </div>
-                    <div className="p-3 bg-emerald-100 rounded-full">
+                    <div className="p-3 bg-emerald-100 dark:bg-emerald-900/40 rounded-full">
                       <TrendingDown className="w-6 h-6 text-emerald-600" />
                     </div>
                   </div>
                 </Card>
 
                 {/* Current Streak */}
-                <Card className="p-6 bg-white border-border shadow-sm">
+                <Card className="p-6 bg-card border-border shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Current Streak</p>
@@ -689,14 +686,14 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                         <span className="text-sm text-muted-foreground">days tracked</span>
                       </div>
                     </div>
-                    <div className="p-3 bg-blue-100 rounded-full">
+                    <div className="p-3 bg-blue-100 dark:bg-blue-900/40 rounded-full">
                       <Flame className="w-6 h-6 text-blue-600" />
                     </div>
                   </div>
                 </Card>
 
                 {/* Avg Daily Water */}
-                <Card className="p-6 bg-white border-border shadow-sm">
+                <Card className="p-6 bg-card border-border shadow-sm">
                   <div className="flex items-start justify-between">
                     <div>
                       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3">Avg Hydration</p>
@@ -709,13 +706,12 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                         <span className="text-sm text-muted-foreground">ml/day</span>
                       </div>
                     </div>
-                    <div className="p-3 bg-sky-100 rounded-full">
+                    <div className="p-3 bg-sky-100 dark:bg-sky-900/40 rounded-full">
                       <Droplet className="w-6 h-6 text-sky-500" />
                     </div>
                   </div>
                 </Card>
               </div>
-
 
             </div>
           )}
