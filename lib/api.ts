@@ -1,4 +1,4 @@
-const BASE_URL = 'https://api.foodoscope.com/recipe2-api'
+const BASE_URL = `${process.env.BASE_URL}/recipe2-api`
 const API_KEY = process.env.NEXT_PUBLIC_FOODOSCOPE_KEY
 
 /* -------------------------------------------------- */
@@ -128,7 +128,7 @@ export async function getRecipeDetails(recipeId: string) {
     console.log("DETAILS REQUEST:", recipeId)
 
     const res = await fetch(
-      `https://api.foodoscope.com/recipe2-api/search-recipe/${recipeId}`,
+      `${BASE_URL}/search-recipe/${recipeId}`,
       {
         headers: {
           'Content-Type': 'application/json',

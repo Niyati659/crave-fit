@@ -163,7 +163,7 @@ export async function GET(request: NextRequest) {
       Authorization: `Bearer ${apiKey}`
     }
 
-    const url = `https://api.foodoscope.com/flavordb/food/by-alias?food_pair=${proxy1}`
+    const url = `${process.env.FLAVORDB_URL}/food/by-alias?food_pair=${proxy1}`
     console.log(`🔗 Fetching: ${url}`)
 
     const res = await fetch(url, { headers })

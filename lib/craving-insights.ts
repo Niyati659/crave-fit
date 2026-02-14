@@ -110,7 +110,7 @@ export async function analyzeCravingPatterns(): Promise<CravingInsight | null> {
         /* ⭐ CALL LOCAL ML ENGINE */
         let mlResult = null
         try {
-            const res = await fetch(ML_API_URL, {
+            const res = await fetch(process.env.ML_API_URL!, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ features })

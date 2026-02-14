@@ -166,7 +166,7 @@ export async function smartSearch(params: SmartSearchParams) {
     if (foodName) {
       endpointUsed = "TITLE";
 
-      const titleUrl = `https://api.foodoscope.com/recipe2-api/recipe-bytitle/recipeByTitle?title=${encodeURIComponent(foodName)}`;
+      const titleUrl = `${process.env.BASE_URL}/recipe2-api/recipe-bytitle/recipeByTitle?title=${encodeURIComponent(foodName)}`;
 
       const response = await fetch(titleUrl, {
         headers: {
@@ -192,10 +192,11 @@ export async function smartSearch(params: SmartSearchParams) {
         page_size: '2',
       });
 
-      const cuisineUrl = `https://api.foodoscope.com/recipe2-api/recipes_cuisine/cuisine/${encodeURIComponent(
+      const cuisineUrl = `${process.env.BASE_URL}/recipe2-api/recipes_cuisine/cuisine/${encodeURIComponent(
         params.cuisine
       )}?${parameters.toString()}`;
 
+  
       const response = await fetch(cuisineUrl, {
         headers: {
           'Content-Type': 'application/json',
@@ -240,8 +241,8 @@ export async function smartSearch(params: SmartSearchParams) {
     // 5️⃣ Fetch only missing from API
    const apiResults = await Promise.all(
       missingRecipes.map(async (recipe: any) => {
-        const detailUrl = `https://api.foodoscope.com/recipe2-api/search-recipe/${recipe.Recipe_id}`;
-        const recipeUrl = `https://api.foodoscope.com/recipe2-api/instructions/${recipe.Recipe_id}`;
+        const detailUrl = `${process.env.BASE_URL}/recipe2-api/search-recipe/${recipe.Recipe_id}`;
+        const recipeUrl = `${process.env.BASE_URL}/recipe2-api/instructions/${recipe.Recipe_id}`;
 
         const [detailRes, recipeRes] = await Promise.all([
           fetch(detailUrl, {

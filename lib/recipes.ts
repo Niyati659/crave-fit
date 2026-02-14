@@ -25,7 +25,7 @@ export interface Recipe {
     ingredients: Ingredient[]
 }
 
-const FOODOSCOPE_BASE_URL = 'https://api.foodoscope.com/recipe2-api'
+const FOODOSCOPE_BASE_URL = `${process.env.BASE_URL}/recipe2-api`
 const API_KEY = process.env.NEXT_PUBLIC_FOODOSCOPE_KEY
 
 export async function getRecipeByTitle(title: string): Promise<Recipe | null> {
