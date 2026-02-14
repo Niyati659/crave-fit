@@ -53,6 +53,10 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
     const [isEditing, setIsEditing] = useState(false)
     const [loading, setLoading] = useState(true)
     const [saving, setSaving] = useState(false)
+    const [activeMetric, setActiveMetric] = useState<string>('weight')
+    const [selectedAllergies, setSelectedAllergies] = useState<string[]>([])
+
+    
     const [uploading, setUploading] = useState(false)
     const [profile, setProfile] = useState<ProfileData>({
         full_name: '',
@@ -70,6 +74,7 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
     })
 
     const fileInputRef = useRef<HTMLInputElement>(null)
+    
 
     useEffect(() => {
         async function getProfile() {
@@ -118,6 +123,31 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
 
         getProfile()
     }, [])
+    useEffect(() => {
+        if (profile.allergies) {
+            setSelectedAllergies(
+            profile.allergies.split(',').map(a => a.trim())
+            )
+        }
+        }, [profile.allergies])
+
+    const toggleAllergy = (item: string) => {
+        let updated
+
+        if (selectedAllergies.includes(item)) {
+            updated = selectedAllergies.filter(a => a !== item)
+        } else {
+            updated = [...selectedAllergies, item]
+        }
+
+        setSelectedAllergies(updated)
+
+        setProfile(prev => ({
+            ...prev,
+            allergies: updated.join(', ')
+        }))
+        }
+
 
     const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         try {
@@ -223,6 +253,36 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
     }
 
     const goalInfo = getGoalInfo(profile.goal)
+    const bmi =
+        profile.weight && profile.height
+            ? (
+                Number(profile.weight) /
+                Math.pow(Number(profile.height) / 100, 2)
+            ).toFixed(1)
+            : null
+
+    const bmiStatus = bmi
+        ? Number(bmi) < 18.5
+            ? 'Underweight'
+            : Number(bmi) < 25
+                ? 'Normal'
+                : Number(bmi) < 30
+                    ? 'Overweight'
+                    : 'Obese'
+        : null
+
+    const ALLERGEN_OPTIONS = [
+            'Peanuts',
+            'Milk',
+            'Gluten',
+            'Soy',
+            'Eggs',
+            'Shellfish',
+            'Tree Nuts',
+            'Wheat',
+            'Yeast',
+            'Sesame'
+            ]
 
     return (
         <div className="max-w-4xl mx-auto px-4 py-10 animate-in fade-in duration-500">
@@ -398,17 +458,65 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
 
                             {/* Allergies Section */}
                             <div className="space-y-4">
-                                <Label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
-                                    <Utensils className="w-3.5 h-3.5" /> Dietary Restrictions & Allergies
-                                </Label>
-                                <Input
-                                    placeholder="e.g. Peanuts, Lactose, Gluten-free..."
-                                    value={profile.allergies}
-                                    onChange={(e) => setProfile({ ...profile, allergies: e.target.value })}
-                                    className="h-14 rounded-2xl bg-white/60 border-border/40 focus:border-primary/50 text-base font-medium"
-                                />
-                                <p className="text-[10px] text-muted-foreground italic px-1">We'll use this to filter your food recommendations.</p>
+
+                            <Label className="text-xs font-black uppercase tracking-widest text-primary flex items-center gap-2">
+                                <Utensils className="w-3.5 h-3.5" />
+                                Dietary Restrictions & Allergies
+                            </Label>
+
+                            {/* Chips */}
+                            <div className="flex flex-wrap gap-2">
+
+                                {ALLERGEN_OPTIONS.map(item => {
+                                const active = selectedAllergies.includes(item)
+
+                                return (
+                                    <button
+                                    key={item}
+                                    type="button"
+                                    onClick={() => toggleAllergy(item)}
+                                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all
+                                    ${active
+                                        ? 'bg-red-500/15 border-red-500/40 text-red-600 shadow-sm'
+                                        : 'bg-white/40 border-border/40 text-muted-foreground hover:bg-red-500/10'
+                                        }`}
+                                    >
+                                    {item}
+                                    </button>
+                                )
+                                })}
                             </div>
+
+                            {/* Custom Add */}
+                            <Input
+                                placeholder="Add custom allergy..."
+                                onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                    e.preventDefault()
+                                    const value = (e.target as HTMLInputElement).value.trim()
+
+                                    if (value && !selectedAllergies.includes(value)) {
+                                    const updated = [...selectedAllergies, value]
+
+                                    setSelectedAllergies(updated)
+                                    setProfile(prev => ({
+                                        ...prev,
+                                        allergies: updated.join(', ')
+                                    }))
+
+                                    ;(e.target as HTMLInputElement).value = ''
+                                    }
+                                }
+                                }}
+                                className="h-12 rounded-2xl bg-white/60 border-border/40"
+                            />
+
+                            <p className="text-[10px] text-muted-foreground italic px-1">
+                                Select or add allergies to personalize food recommendations.
+                            </p>
+
+                            </div>
+
 
                             <div className="h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
 
@@ -488,114 +596,283 @@ export function Profile({ onBack, onUpdate }: ProfileProps) {
             ) : (
                 <div className="animate-in slide-in-from-top-4 duration-500 space-y-8">
                     {/* Summary Card */}
-                    <Card className="overflow-hidden border-border/20 bg-white/30 backdrop-blur-3xl shadow-3xl rounded-[2.5rem] relative">
-                        <div className="absolute top-0 right-0 p-10 opacity-5 pointer-events-none">
-                            <Star className="w-40 h-40 fill-primary" />
-                        </div>
+                    <Card className="overflow-hidden border-border/20 bg-white/40 backdrop-blur-2xl shadow-xl rounded-[2rem]">
+                        <div className="p-10 flex flex-col md:flex-row items-center gap-10">
 
-                        <div className="p-10 flex flex-col md:flex-row gap-12 items-center md:items-start text-center md:text-left">
-                            {/* Profile Pic Large */}
-                            <div className="relative">
-                                <div className="w-48 h-48 rounded-[3rem] overflow-hidden border-8 border-white/50 shadow-inner bg-muted">
+                            {/* Avatar + Goal */}
+                            <div className="relative flex flex-col items-center">
+
+                                {/* Avatar */}
+                                <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-primary/20 shadow-lg bg-muted flex items-center justify-center">
                                     {profile.avatar_url ? (
-                                        <img src={profile.avatar_url} alt="Profile" className="w-full h-full object-cover" />
+                                        <img
+                                            src={profile.avatar_url}
+                                            alt="Profile"
+                                            className="w-full h-full object-cover"
+                                        />
                                     ) : (
-                                        <div className="w-full h-full bg-gradient-to-br from-primary/20 to-primary/40 flex items-center justify-center">
-                                            <UserCircle2 className="w-24 h-24 text-primary/30" />
-                                        </div>
+                                        <UserCircle2 className="w-24 h-24 text-primary/40" />
                                     )}
                                 </div>
-                                <div className="absolute -bottom-4 -right-4 bg-white/80 backdrop-blur-md p-4 rounded-3xl shadow-xl flex items-center gap-2 border border-border/30">
-                                    <div className={`p-2 rounded-xl ${goalInfo.bg}`}>
-                                        <span className="text-xl leading-none">{goalInfo.icon}</span>
-                                    </div>
-                                    <div>
-                                        <p className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground leading-none">Status</p>
-                                        <p className={`text-sm font-bold ${goalInfo.color}`}>{goalInfo.label}</p>
-                                    </div>
+
+                                {/* Goal Badge */}
+                                <div className={`mt-4 px-4 py-1.5 rounded-full text-xs font-bold flex items-center gap-2 ${goalInfo.bg}`}>
+                                    <span>{goalInfo.icon}</span>
+                                    <span className={goalInfo.color}>{goalInfo.label}</span>
                                 </div>
                             </div>
 
-                            {/* Bio & Stats */}
-                            <div className="flex-1 space-y-10 pt-4">
-                                <div className="space-y-2">
-                                    <h2 className="text-5xl font-black text-foreground tracking-tight">
-                                        {profile.full_name || 'Health Hero'}
-                                    </h2>
-                                    <p className="text-lg text-muted-foreground font-medium flex items-center justify-center md:justify-start gap-2">
-                                        <Mail className="w-4 h-4 text-primary/60" />
-                                        {profile.email}
-                                    </p>
+                            {/* Bio Info */}
+                            <div className="flex-1 text-center md:text-left space-y-4">
+
+                                {/* Name */}
+                                <h2 className="text-4xl font-black tracking-tight text-foreground">
+                                    {profile.full_name || 'Health Hero'}
+                                </h2>
+
+                                {/* Email */}
+                                <p className="text-muted-foreground flex items-center justify-center md:justify-start gap-2 text-sm">
+                                    <Mail className="w-4 h-4 text-primary/60" />
+                                    {profile.email}
+                                </p>
+
+                                {/* Inline Meta */}
+                                <div className="flex flex-wrap justify-center md:justify-start gap-3 text-xs font-semibold text-muted-foreground">
+
+                                    {profile.age && (
+                                        <span className="px-3 py-1 rounded-full bg-primary/5 border border-primary/10">
+                                            Age: {profile.age}
+                                        </span>
+                                    )}
+
+                                    {profile.gender && (
+                                        <span className="px-3 py-1 rounded-full bg-primary/5 border border-primary/10 capitalize">
+                                            {profile.gender}
+                                        </span>
+                                    )}
                                 </div>
 
-                                <div className="grid grid-cols-2 lg:grid-cols-4 gap-6">
-                                    {[
-                                        { label: 'Weight', value: `${profile.weight || '--'}`, unit: 'kg', icon: <Scale className="w-4 h-4" /> },
-                                        { label: 'Height', value: `${profile.height || '--'}`, unit: 'cm', icon: <Ruler className="w-4 h-4" /> },
-                                        { label: 'Age', value: `${profile.age || '--'}`, unit: 'yrs', icon: <Activity className="w-4 h-4" /> },
-                                        { label: 'Goal', value: `${goalInfo.label}`, unit: '', icon: <Zap className="w-4 h-4" /> },
-                                    ].map((stat, i) => (
-                                        <div key={i} className="bg-white/40 p-5 rounded-3xl border border-border/10 hover:translate-y-[-4px] transition-transform shadow-sm">
-                                            <div className="text-primary mb-3">{stat.icon}</div>
-                                            <div className="flex items-baseline gap-1">
-                                                <span className="text-2xl font-black text-foreground">{stat.value}</span>
-                                                <span className="text-xs font-bold text-muted-foreground uppercase">{stat.unit}</span>
+                                {/* Goal Progress (Hardcoded Calc Ready) */}
+                                {(profile.goal === 'weight_loss' || profile.goal === 'weight_gain') &&
+                                    profile.weight &&
+                                    profile.target_weight && (
+                                        <div className="mt-4 space-y-2">
+
+                                            <div className="flex justify-between text-xs font-bold">
+                                                <span>Goal Progress</span>
+                                                <span>
+                                                    {Math.abs(
+                                                        ((Number(profile.weight) - Number(profile.target_weight)) /
+                                                            Number(profile.weight)) *
+                                                        100
+                                                    ).toFixed(0)}
+                                                    %
+                                                </span>
                                             </div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground mt-1">{stat.label}</p>
+
+                                            <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                                                <div
+                                                    className="h-full bg-gradient-to-r from-primary to-primary/60"
+                                                    style={{
+                                                        width: `${Math.min(
+                                                            Math.abs(
+                                                                ((Number(profile.weight) - Number(profile.target_weight)) /
+                                                                    Number(profile.weight)) *
+                                                                100
+                                                            ),
+                                                            100
+                                                        )}%`
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                    ))}
+                                    )}
+                            </div>
+                            {/* RIGHT — BMI Square Health Tile */}
+                            {bmi && (
+                                <div className="hidden md:flex ml-auto items-center">
+
+                                    <div className="w-36 h-36 bg-gradient-to-br from-purple-500/15 via-white/40 to-purple-500/5 backdrop-blur-xl rounded-2xl border border-purple-500/20 shadow-sm flex flex-col items-center justify-center text-center">
+
+                                        {/* Icon */}
+                                        <div className="w-9 h-9 rounded-xl bg-purple-500/20 flex items-center justify-center mb-2">
+                                            <Activity className="w-4 h-4 text-purple-600" />
+                                        </div>
+
+                                        {/* BMI Value */}
+                                        <div className="text-2xl font-black text-foreground leading-none">
+                                            {bmi}
+                                        </div>
+
+                                        {/* Status */}
+                                        {bmiStatus && (
+                                            <p className="text-[10px] text-muted-foreground mt-0.5">
+                                                {bmiStatus}
+                                            </p>
+                                        )}
+
+                                        {/* Label */}
+                                        <p className="text-[9px] font-bold uppercase tracking-wider text-muted-foreground mt-1">
+                                            BMI
+                                        </p>
+
+                                    </div>
+
                                 </div>
+                            )}
 
-                                {profile.allergies && (
-                                    <div className="bg-primary/5 p-6 rounded-3xl border border-primary/10 flex items-center gap-4">
-                                        <div className="bg-white p-3 rounded-2xl shadow-sm">
-                                            <Utensils className="w-5 h-5 text-primary" />
-                                        </div>
-                                        <div>
-                                            <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Active Sensitivities</p>
-                                            <p className="text-sm font-bold text-foreground">{profile.allergies}</p>
-                                        </div>
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-
-                        <div className="p-10 bg-gradient-to-r from-primary/10 via-transparent to-transparent flex items-center gap-6">
-                            <div className="flex -space-x-3">
-                                {[1, 2, 3].map(i => (
-                                    <div key={i} className="w-10 h-10 rounded-full bg-white border-2 border-primary/20 flex items-center justify-center shadow-lg">
-                                        <CheckCircle2 className="w-5 h-5 text-primary" />
-                                    </div>
-                                ))}
-                            </div>
-                            <div>
-                                <p className="text-sm font-bold text-foreground">Health Journey Active</p>
-                                <p className="text-xs text-muted-foreground">Syncing data with dashboard in real-time</p>
-                            </div>
                         </div>
                     </Card>
 
-                    {/* Tips Section */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <Card className="p-8 border-border/20 bg-orange-50/50 rounded-3xl flex items-start gap-5">
-                            <div className="bg-orange-100 p-4 rounded-2xl">
-                                <Utensils className="w-8 h-8 text-orange-600" />
-                            </div>
-                            <div>
-                                <h4 className="text-lg font-bold text-orange-900">Next Step: Hydration</h4>
-                                <p className="text-sm text-orange-800/70 mt-1">Based on your weight of {profile.weight}kg, you should aim for 2.8L of water today.</p>
-                            </div>
-                        </Card>
-                        <Card className="p-8 border-border/20 bg-green-50/50 rounded-3xl flex items-start gap-5">
-                            <div className="bg-green-100 p-4 rounded-2xl">
-                                <Activity className="w-8 h-8 text-green-600" />
-                            </div>
-                            <div>
-                                <h4 className="text-lg font-bold text-green-900">Health Milestone</h4>
-                                <p className="text-sm text-green-800/70 mt-1">Your profile is 100% complete! This unlocks advanced AI meal recommendations.</p>
-                            </div>
-                        </Card>
-                    </div>
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 mt-6">
+
+    {/* WEIGHT — BLUE */}
+    <div
+        onClick={() => setActiveMetric('weight')}
+        className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
+        ${activeMetric === 'weight'
+                ? 'bg-gradient-to-br from-blue-500/25 via-white/40 to-blue-500/10 border-blue-500/40 shadow-lg scale-[1.02]'
+                : 'bg-gradient-to-br from-blue-500/15 via-white/40 to-blue-500/5 border-blue-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
+            }`}
+    >
+        <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center mb-4">
+            <Scale className="w-5 h-5 text-blue-600" />
+        </div>
+
+        <div className="text-3xl font-black text-foreground">
+            {profile.weight || '--'}
+            <span className="text-base ml-1 text-muted-foreground">kg</span>
+        </div>
+
+        {profile.weight && profile.target_weight && (
+            <p className="text-xs text-muted-foreground mt-1">
+                {Math.abs(
+                    Number(profile.weight) - Number(profile.target_weight)
+                ).toFixed(1)} kg to goal
+            </p>
+        )}
+
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
+            Weight
+        </p>
+    </div>
+
+    {/* TARGET — PURPLE */}
+    <div
+        onClick={() => setActiveMetric('target')}
+        className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
+        ${activeMetric === 'target'
+                ? 'bg-gradient-to-br from-purple-500/25 via-white/40 to-purple-500/10 border-purple-500/40 shadow-lg scale-[1.02]'
+                : 'bg-gradient-to-br from-purple-500/15 via-white/40 to-purple-500/5 border-purple-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
+            }`}
+    >
+        <div className="w-10 h-10 rounded-xl bg-purple-500/20 flex items-center justify-center mb-4">
+            <Target className="w-5 h-5 text-purple-600" />
+        </div>
+
+        <div className="text-3xl font-black text-foreground">
+            {profile.target_weight || '--'}
+            <span className="text-base ml-1 text-muted-foreground">kg</span>
+        </div>
+
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
+            Target Weight
+        </p>
+    </div>
+
+    {/* HEIGHT — CYAN */}
+    <div
+        onClick={() => setActiveMetric('height')}
+        className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
+        ${activeMetric === 'height'
+                ? 'bg-gradient-to-br from-cyan-500/25 via-white/40 to-cyan-500/10 border-cyan-500/40 shadow-lg scale-[1.02]'
+                : 'bg-gradient-to-br from-cyan-500/15 via-white/40 to-cyan-500/5 border-cyan-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
+            }`}
+    >
+        <div className="w-10 h-10 rounded-xl bg-cyan-500/20 flex items-center justify-center mb-4">
+            <Ruler className="w-5 h-5 text-cyan-600" />
+        </div>
+
+        <div className="text-3xl font-black text-foreground">
+            {profile.height || '--'}
+            <span className="text-base ml-1 text-muted-foreground">cm</span>
+        </div>
+
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
+            Height
+        </p>
+    </div>
+
+    {/* AGE — ORANGE */}
+    <div
+        onClick={() => setActiveMetric('age')}
+        className={`cursor-pointer p-6 rounded-3xl backdrop-blur-xl border transition-all duration-300
+        ${activeMetric === 'age'
+                ? 'bg-gradient-to-br from-orange-500/25 via-white/40 to-orange-500/10 border-orange-500/40 shadow-lg scale-[1.02]'
+                : 'bg-gradient-to-br from-orange-500/15 via-white/40 to-orange-500/5 border-orange-500/30 shadow-sm hover:shadow-md hover:-translate-y-1'
+            }`}
+    >
+        <div className="w-10 h-10 rounded-xl bg-orange-500/20 flex items-center justify-center mb-4">
+            <Activity className="w-5 h-5 text-orange-600" />
+        </div>
+
+        <div className="text-3xl font-black text-foreground">
+            {profile.age || '--'}
+            <span className="text-base ml-1 text-muted-foreground">yrs</span>
+        </div>
+
+        <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground mt-3">
+            Age
+        </p>
+    </div>
+
+</div>
+{profile.allergies && (
+  <div className="relative overflow-hidden rounded-3xl border border-red-500/20 bg-gradient-to-br from-red-500/10 via-white/40 to-red-500/5 backdrop-blur-xl p-6 shadow-sm">
+
+    {/* Background Glow */}
+    <div className="absolute -top-10 -right-10 w-32 h-32 bg-red-500/10 rounded-full blur-3xl pointer-events-none" />
+
+    <div className="flex items-start gap-4">
+
+      {/* Icon Tile */}
+      <div className="w-12 h-12 rounded-2xl bg-red-500/15 flex items-center justify-center shadow-sm">
+        <Utensils className="w-6 h-6 text-red-600" />
+      </div>
+
+      {/* Content */}
+      <div className="flex-1">
+
+        {/* Title */}
+        <p className="text-xs font-black uppercase tracking-widest text-muted-foreground">
+          Active Sensitivities
+        </p>
+
+        {/* Chips */}
+        <div className="flex flex-wrap gap-2 mt-3">
+
+          {profile.allergies.split(',').map((item, i) => (
+            <span
+              key={i}
+              className="px-3 py-1 rounded-full text-xs font-bold bg-red-500/15 text-red-600 border border-red-500/20 backdrop-blur-sm"
+            >
+              {item.trim()}
+            </span>
+          ))}
+
+        </div>
+
+        {/* Helper Note */}
+        <p className="text-[10px] text-muted-foreground mt-3 italic">
+          Meals containing these allergens will be filtered or flagged.
+        </p>
+
+      </div>
+
+    </div>
+  </div>
+)}
+
                 </div>
             )}
         </div>
