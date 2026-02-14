@@ -346,7 +346,7 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
             <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
 
               {/* 🧠 DAILY + CRAVING INTELLIGENCE WRAPPER */}
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 item-stretch">
 
                 {/* LEFT — DAILY INTELLIGENCE */}
                 <div className="space-y-6">
@@ -417,21 +417,31 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                 </div>
 
                 {/* RIGHT — BEHAVIORAL AI REPORT (compact, scrollable recipes) */}
-                <div className="space-y-6 flex flex-col">
+                <div className="space-y-6 flex flex-col h-full">
                   <h2 className="text-sm font-bold text-foreground uppercase tracking-wider">
                     Behavioral AI Report
                   </h2>
 
                   <Card
-                    className={`p-0 overflow-hidden border-border shadow-sm flex-1 flex flex-col bg-gradient-to-br ${behavioralStatus.type === 'lethargic'
+                  className={`
+                    p-0
+                    overflow-hidden
+                    border-border
+                    shadow-sm
+                    flex flex-col
+                    h-full
+                    bg-gradient-to-br
+                    ${behavioralStatus.type === 'lethargic'
                       ? 'from-amber-100/60 to-amber-200/40 dark:from-amber-900/40 dark:to-amber-800/30'
                       : behavioralStatus.type === 'stressed'
                         ? 'from-sky-100/60 to-sky-200/40 dark:from-sky-900/40 dark:to-sky-800/30'
                         : behavioralStatus.type === 'consistent'
                           ? 'from-purple-100/60 to-purple-200/40 dark:from-purple-900/40 dark:to-purple-800/30'
                           : 'from-emerald-100/60 to-emerald-200/40 dark:from-emerald-900/40 dark:to-emerald-800/30'
-                      }`}
-                  >
+                    }
+                  `}
+                >
+
                     {/* Header */}
                     <div className="px-6 pt-5 pb-3 space-y-2">
                       <div className="flex items-center gap-2">
@@ -457,40 +467,122 @@ export function Dashboard({ onNavigate, userData }: DashboardProps) {
                     </div>
 
                     {/* Scrollable Recipes */}
-                    <div className="px-6 pb-5 flex-1 overflow-hidden">
-                      {isRefreshingRecs ? (
-                        <div className="flex flex-col gap-2">
-                          {[1, 2, 3].map(i => (
-                            <div key={i} className="h-14 rounded-xl bg-card/50 animate-pulse border border-border" />
-                          ))}
-                        </div>
-                      ) : recommendations.length > 0 ? (
-                        <div className="h-full max-h-[180px] overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'thin' }}>
-                          {recommendations.map((rec, i) => (
-                            <div
-                              key={i}
-                              onClick={() => {
-                                setSelectedRecipeName(rec.name)
-                                setShowChefFriend(true)
-                              }}
-                              className="w-full bg-card/80 backdrop-blur-sm p-3 rounded-xl border border-border/60 hover:bg-card hover:shadow-md cursor-pointer transition-all flex items-center justify-between"
-                            >
-                              <div>
-                                <h4 className="font-bold text-foreground text-xs leading-snug">{rec.name}</h4>
-                                <p className="text-[10px] font-semibold text-muted-foreground mt-0.5">{rec.calories} kcal</p>
-                              </div>
-                              <div className="w-6 h-6 rounded-full bg-card border border-border flex items-center justify-center shrink-0">
-                                <ArrowRight className="w-3 h-3 opacity-70" />
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="py-4 flex items-center justify-center border-2 border-dashed border-border rounded-xl">
-                          <p className="text-[10px] text-muted-foreground italic">Gathering more intelligence…</p>
-                        </div>
-                      )}
-                    </div>
+<div className="px-6 pb-5 flex-1 overflow-hidden">
+
+  {isRefreshingRecs ? (
+
+    /* Loading skeleton */
+    <div className="flex flex-col gap-2">
+      {[1, 2, 3].map(i => (
+        <div
+          key={i}
+          className="h-14 rounded-xl bg-card/50 animate-pulse border border-border"
+        />
+      ))}
+    </div>
+
+  ) : recommendations.length > 0 ? (
+
+    /* 🔥 Compact Scroll Feed */
+    <div
+      className="
+        h-full
+        max-h-[50px]
+        overflow-y-auto
+        space-y-2
+        pr-1
+        scrollbar-thin
+        scrollbar-thumb-muted-foreground/30
+        scrollbar-track-transparent
+      "
+    >
+
+      {recommendations.map((rec, i) => (
+
+        <div
+          key={i}
+          onClick={() => {
+            setSelectedRecipeName(rec.name)
+            setShowChefFriend(true)
+          }}
+          className="
+            group
+            w-full
+            bg-card/80
+            backdrop-blur-sm
+            p-3
+            rounded-xl
+            border border-border/60
+            hover:bg-card
+            hover:shadow-md
+            cursor-pointer
+            transition-all
+            flex items-center justify-between
+          "
+        >
+
+          {/* Left text */}
+          <div className="min-w-0">
+
+            <h4 className="
+              font-bold
+              text-foreground
+              text-xs
+              leading-snug
+              truncate
+            ">
+              {rec.name}
+            </h4>
+
+            <p className="
+              text-[10px]
+              font-semibold
+              text-muted-foreground
+              mt-0.5
+            ">
+              {rec.calories} kcal
+            </p>
+
+          </div>
+
+          {/* Arrow */}
+          <div className="
+            w-6 h-6
+            rounded-full
+            bg-card
+            border border-border
+            flex items-center justify-center
+            shrink-0
+            group-hover:scale-110
+            transition
+          ">
+            <ArrowRight className="w-3 h-3 opacity-70" />
+          </div>
+
+        </div>
+
+      ))}
+
+    </div>
+
+  ) : (
+
+    /* Empty state */
+    <div className="
+      py-4
+      flex items-center justify-center
+      border-2 border-dashed border-border
+      rounded-xl
+    ">
+      <p className="text-[10px] text-muted-foreground italic">
+        Gathering more intelligence…
+      </p>
+    </div>
+
+  )}
+
+</div>
+
                   </Card>
                 </div>
               </div>

@@ -24,6 +24,24 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
     const [isTimerRunning, setIsTimerRunning] = useState(false)
     const [imageError, setImageError] = useState(false)
     const [servings, setServings] = useState(2)
+    // Missing detection
+const [missingIngredients, setMissingIngredients] =
+  useState<string[]>([])
+
+const [activeMissing, setActiveMissing] =
+  useState<string | null>(null)
+
+// Gemini substitutes
+const [substitutes, setSubstitutes] =
+  useState<Record<string, string[]>>({})
+
+const [loadingSubs, setLoadingSubs] =
+  useState<Record<string, boolean>>({})
+
+
+
+    const [selectedMissing, setSelectedMissing] = useState<string[]>([])
+
     const [customPrompt, setCustomPrompt] = useState('')
     const [isGenerating, setIsGenerating] = useState(false)
     const [initialTime, setInitialTime] = useState<number | null>(null)
@@ -52,6 +70,22 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
         }
     }, [initialRecipe])
 
+    useEffect(() => {
+  if (!recipe?.ingredients) return
+
+  const names =
+    recipe.ingredients.map(
+      (i: any) => i.name
+    )
+
+  // TEMP demo missing
+  setMissingIngredients(
+    names.slice(0, 2)
+  )
+}, [recipe])
+
+    
+
     const handleAutoFetchRecipe = async (recipeName: string) => {
         setIsGenerating(true)
         try {
@@ -66,6 +100,9 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
             setIsGenerating(false)
         }
     }
+    const recipeIngredientNames =
+        recipe?.ingredients?.map((i: any) => i.name) || []
+
 
     const steps = recipe?.instructions || [
         "Select a recipe to start cooking with your Chef Friend!",
@@ -73,6 +110,68 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
 
     const totalSteps = steps.length
     const progress = ((currentStep + 1) / totalSteps) * 100
+    
+
+   const fetchGeminiSubstitutes = async (
+  ingredient: string
+) => {
+  if (!recipeIngredientNames.length) return
+
+  try {
+    setLoadingSubs(prev => ({
+      ...prev,
+      [ingredient]: true,
+    }))
+
+    const res = await fetch(
+      "/api/substitutes",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+        body: JSON.stringify({
+          ingredient,
+          recipe_ingredients:
+            recipeIngredientNames,
+        }),
+      }
+    )
+
+    const data = await res.json()
+
+    setSubstitutes(prev => ({
+      ...prev,
+      [ingredient]:
+        data.substitutes || [],
+    }))
+  } catch (err) {
+    console.error(err)
+  } finally {
+    setLoadingSubs(prev => ({
+      ...prev,
+      [ingredient]: false,
+    }))
+  }
+}
+useEffect(() => {
+  if (!recipe?.ingredients) return
+
+  // Example pantry — replace with real user pantry later
+  const pantry = ["Garlic", "Salt"]
+
+  const recipeIngs =
+    recipe.ingredients.map(i =>
+      i.name.toLowerCase()
+    )
+
+  const missing = recipeIngs.filter(
+    ing => !pantry.includes(ing)
+  )
+
+  setMissingIngredients(missing)
+}, [recipe])
 
     // Magic scaling logic for ingredients
     const renderIngredient = (ing: any) => {
@@ -235,6 +334,16 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
         if (instruction.includes('eat') || instruction.includes('serve') || instruction.includes('enjoy')) return '😋'
         return '👻'
     }
+    // Handle dropdown select
+    const handleMissingSelect = (value: string) => {
+    if (selectedMissing.includes(value)) {
+        setSelectedMissing(prev => prev.filter(v => v !== value))
+    } else {
+        setSelectedMissing(prev => [...prev, value])
+    }
+    }
+
+
 
     return (
         <div className="relative min-h-[calc(100vh-64px)] w-full flex flex-col items-center justify-center p-4 pt-10 overflow-x-hidden">
@@ -384,34 +493,151 @@ export function ChefFriend({ recipe: initialRecipe, onClose }: ChefFriendProps) 
                                 </div>
                             ) : (
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-12 items-center">
-                                    {/* Character Area */}
-                                    <div className="relative group flex justify-center">
-                                        <div className="relative aspect-square w-full max-w-[280px] bg-white/20 rounded-[2.5rem] border-4 border-black/10 shadow-inner flex items-center justify-center overflow-hidden">
-                                            <Image
-                                                src={getChefImage()}
-                                                alt="Chef Buddy"
-                                                width={260}
-                                                height={260}
-                                                className="object-contain drop-shadow-2xl p-4"
-                                                priority
-                                            />
-                                        </div>
+                                    
+                                {/* Character Area */}
+<div className="relative group flex justify-center">
 
-                                        <div className="absolute -bottom-4 left-1/2 -translate-x-1/2 bg-black shadow-2xl rounded-2xl p-3 flex items-center gap-4 border-2 border-[#fdba74]">
-                                            <div className="flex items-center gap-2">
-                                                {[1, 2, 4, 8].map(s => (
-                                                    <button
-                                                        key={s}
-                                                        onClick={() => setServings(s)}
-                                                        className={`w-10 h-10 rounded-xl text-sm font-black transition-all ${servings === s ? 'bg-[#fdba74] text-black scale-110 shadow-lg' : 'text-white/40 hover:text-white'}`}
-                                                    >
-                                                        {s}
-                                                    </button>
-                                                ))}
-                                            </div>
-                                            <span className="text-[10px] font-black text-white/60 px-2 uppercase border-l border-white/20">Servings</span>
-                                        </div>
-                                    </div>
+  {/* Chef Image */}
+  <div className="relative aspect-square w-full max-w-[280px] bg-white/20 rounded-[2.5rem] border-4 border-black/10 shadow-inner flex items-center justify-center overflow-hidden">
+    <Image
+      src={getChefImage()}
+      alt="Chef Buddy"
+      width={260}
+      height={260}
+      className="object-contain drop-shadow-2xl p-4"
+      priority
+    />
+  </div>
+
+  {/* Controls Stack */}
+  <div className="absolute -bottom-24 left-1/2 -translate-x-1/2 flex flex-col items-center gap-3 w-[260px]">
+
+    {/* Servings Bar */}
+    <div className="w-full bg-black shadow-2xl rounded-2xl p-3 flex items-center justify-between border-2 border-[#fdba74]">
+
+      <div className="flex items-center gap-2">
+        {[1, 2, 4, 8].map(s => (
+          <button
+            key={s}
+            onClick={() => setServings(s)}
+            className={`w-9 h-9 rounded-xl text-sm font-black transition-all ${
+              servings === s
+                ? 'bg-[#fdba74] text-black scale-110 shadow-lg'
+                : 'text-white/40 hover:text-white'
+            }`}
+          >
+            {s}
+          </button>
+        ))}
+      </div>
+
+      <span className="text-[10px] font-black text-white/60 uppercase">
+        Servings
+      </span>
+    </div>
+
+{/* Missing Compact Trigger */}
+{missingIngredients.length > 0 && (
+  <div className="relative w-full flex flex-col items-center">
+
+    {/* Top Bar */}
+    <button
+      onClick={() =>
+        setActiveMissing(
+          activeMissing ? null : missingIngredients[0]
+        )
+      }
+      className="w-full bg-black/80 text-white px-3 py-2 rounded-xl shadow-lg border border-[#fdba74]/40 flex items-center gap-2"
+    >
+      <div className="w-5 h-5 flex items-center justify-center rounded-full bg-[#fdba74] text-black font-black text-[10px]">
+        ?
+      </div>
+
+      <p className="text-[11px] font-bold uppercase flex-1">
+        Missing Something?
+      </p>
+
+      <span className="text-[10px] font-black bg-white/20 px-2 py-0.5 rounded-md">
+        {missingIngredients.length}
+      </span>
+    </button>
+
+    {/* Floating Panel */}
+    {activeMissing && (
+      <div className="absolute top-14 w-full bg-white/95 backdrop-blur-xl border border-black/10 rounded-xl shadow-xl p-3 flex flex-col gap-3 animate-in fade-in zoom-in-95">
+
+        {/* Ingredient Scroll Strip */}
+        <div className="w-full overflow-x-auto scrollbar-thin scrollbar-thumb-black/20 scrollbar-track-transparent">
+          <div className="flex gap-2 w-max px-1">
+
+            {missingIngredients.map((ing) => (
+              <button
+                key={ing}
+                onClick={() => {
+                  setActiveMissing(ing)
+
+                  if (
+                    !substitutes[ing] &&
+                    !loadingSubs[ing]
+                  ) {
+                    fetchGeminiSubstitutes(ing)
+                  }
+                }}
+                className={`px-3 py-1 rounded-full text-[11px] font-bold whitespace-nowrap transition-all ${
+                  activeMissing === ing
+                    ? "bg-[#fdba74] text-black shadow-md"
+                    : "bg-black/10 text-black hover:bg-black/20"
+                }`}
+              >
+                {ing}
+              </button>
+            ))}
+
+          </div>
+        </div>
+
+        {/* Substitutes Area */}
+        <div className="min-h-[48px] flex items-center justify-center bg-yellow-50 border border-yellow-200 rounded-lg px-2 py-2">
+
+          {loadingSubs[activeMissing] ? (
+            <p className="text-[11px] font-bold text-black/50">
+              Finding swaps...
+            </p>
+
+          ) : substitutes[activeMissing]?.length > 0 ? (
+
+            <div className="flex flex-wrap gap-2 justify-center">
+              {substitutes[activeMissing].map(
+                (sub, idx) => (
+                  <span
+                    key={idx}
+                    className="px-2 py-1 text-[10px] font-bold bg-yellow-200 text-black rounded-md border border-black/20"
+                  >
+                    {sub}
+                  </span>
+                )
+              )}
+            </div>
+
+          ) : (
+            <p className="text-[10px] text-black/40 font-bold">
+              Select ingredient
+            </p>
+          )}
+
+        </div>
+
+      </div>
+    )}
+
+  </div>
+)}
+
+
+  </div>
+</div>
+
+                                    
 
                                     {/* Step Content */}
                                     <div className="flex flex-col justify-center space-y-4 bg-white/40 backdrop-blur-xl p-6 rounded-[2rem] border-4 border-black shadow-[8px_8px_0_rgba(0,0,0,0.05)] min-h-[350px]">
