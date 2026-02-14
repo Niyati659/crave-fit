@@ -13,9 +13,6 @@ import { Header } from '@/components/header'
 
 import { supabase } from '@/lib/supabase'
 import { ChefFriend } from '@/components/chef-friend'
-
-// import { authStorage } from '@/lib/auth'
-// ⭐ NEW QUIZ ENGINE
 import { generateCravingProfile } from '@/lib/quiz-engine'
 
 import { BrowseScreen } from '@/components/pages/browse'
@@ -28,16 +25,13 @@ type PageView =
   | 'recommendations'
   | 'meal-tracker'
   | 'browse'
-  | 'meal-tracker'
   | 'profile'
   | 'chef'
 
 export default function Page() {
   const router = useRouter()
 
-
   const [quizMeta, setQuizMeta] = useState<any>(null)
-
   const [currentView, setCurrentView] = useState<PageView>('landing')
   const [quizAnswers, setQuizAnswers] = useState<Record<string, string>>({})
   const [healthPreference, setHealthPreference] = useState(50)
@@ -53,12 +47,7 @@ export default function Page() {
       .single()
 
     if (error) {
-      console.error('Supabase fetchProfile Error:', {
-        message: error.message,
-        code: error.code,
-        details: error.details,
-        hint: error.hint
-      })
+      console.error('Supabase fetchProfile Error:', error)
       return
     }
 
@@ -76,6 +65,9 @@ export default function Page() {
       if (session) {
         setIsLoggedIn(true)
         fetchProfile(session.user.id)
+
+        // ✅ MAGIC FIX — OPEN DASHBOARD
+        setCurrentView('dashboard')
       }
     }
 
@@ -84,9 +76,17 @@ export default function Page() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event, session) => {
+
       if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
         setIsLoggedIn(true)
-        if (session) fetchProfile(session.user.id)
+
+        if (session) {
+          fetchProfile(session.user.id)
+
+          // ✅ MAGIC FIX — OPEN DASHBOARD
+          setCurrentView('dashboard')
+        }
+
       } else if (event === 'SIGNED_OUT') {
         setIsLoggedIn(false)
         setUserData(null)
@@ -99,12 +99,10 @@ export default function Page() {
     }
   }, [])
 
-  // 🔥 Controlled Navigation
   const handleNavigate = (view: PageView) => {
-    // ❌ Block manual access to recommendations
+
     if (view === 'recommendations') return
 
-    // 🔐 Protect non-landing routes
     if (view !== 'landing' && !isLoggedIn) {
       router.push('/auth/login')
       return
@@ -113,43 +111,11 @@ export default function Page() {
     setCurrentView(view)
   }
 
-  /* ⭐ Save quiz answers to Supabase */
-  const saveQuizToSupabase = async (answers: Record<string, string>) => {
-    try {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        console.warn('No session — skipping quiz save to Supabase')
-        return
-      }
+  const handleQuizComplete = (answers: Record<string, string>) => {
 
-      const { error } = await supabase
-        .from('quiz_responses')
-        .insert({
-          user_id: session.user.id,
-          mood: answers.mood || null,
-          texture: answers.texture || null,
-          taste: answers.taste || null,
-          hunger: answers.hunger || null,
-          diet: answers.diet || null,
-        })
-
-      if (error) {
-        console.error('Error saving quiz to Supabase:', error)
-      } else {
-        console.log('✅ Quiz response saved to Supabase')
-      }
-    } catch (err) {
-      console.error('Quiz Supabase save error:', err)
-    }
-  }
-
-  const handleQuizComplete = (
-    answers: Record<string, string>
-  ) => {
     setQuizAnswers(answers)
 
-    const cravingData =
-      generateCravingProfile(answers)
+    const cravingData = generateCravingProfile(answers)
 
     const meta = {
       answers,
@@ -158,10 +124,6 @@ export default function Page() {
     }
 
     setQuizMeta(meta)
-
-    saveQuizHistory(meta)
-    saveQuizToSupabase(answers)
-
     setCurrentView('recommendations')
   }
 
@@ -170,7 +132,7 @@ export default function Page() {
 
     const updatedMeta = generateCravingProfile(
       quizAnswers,
-      healthPreference // ⭐ THIS IS MAGIC
+      healthPreference
     )
 
     setQuizMeta((prev: any) => ({
@@ -179,26 +141,8 @@ export default function Page() {
     }))
   }, [healthPreference])
 
-
-  const handleSkipQuiz = () => {
-    setCurrentView('recommendations')
-    setQuizAnswers({})
-  }
-
   const handleBackToLanding = () => {
     setCurrentView('landing')
-  }
-
-  const saveQuizHistory = (entry: any) => {
-    const history =
-      JSON.parse(localStorage.getItem('quizHistory') || '[]')
-
-    history.push(entry)
-
-    localStorage.setItem(
-      'quizHistory',
-      JSON.stringify(history)
-    )
   }
 
   return (
@@ -219,9 +163,6 @@ export default function Page() {
         <LandingPage
           onStartQuiz={() => setCurrentView('quiz')}
           onNavigate={handleNavigate}
-          onMealTrackerClick={() =>
-            handleNavigate('meal-tracker')
-          }
         />
       )}
 
@@ -261,6 +202,7 @@ export default function Page() {
           onUpdate={(userId?: string) => fetchProfile(userId || userData?.id || '')}
         />
       )}
+
       {currentView === 'chef' && (
         <ChefFriend
           recipe={activeRecipe}
@@ -273,5 +215,3 @@ export default function Page() {
     </main>
   )
 }
-
-

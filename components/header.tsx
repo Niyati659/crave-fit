@@ -1,12 +1,23 @@
 'use client'
 
 import { Button } from '@/components/ui/button'
-import { Utensils, LayoutDashboard, Search, UtensilsCrossed, LogIn, LogOut, Sparkles, UserCircle, ChefHat } from 'lucide-react'
+import {
+    Utensils,
+    LayoutDashboard,
+    Search,
+    UtensilsCrossed,
+    LogIn,
+    LogOut,
+    Sparkles,
+    UserCircle,
+    ChefHat,
+    Moon,
+    Sun
+} from 'lucide-react'
+
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
-import { Moon, Sun } from 'lucide-react'
 import { useTheme } from '@/hooks/useTheme'
-
 
 interface HeaderProps {
     currentView: string
@@ -19,9 +30,9 @@ interface HeaderProps {
 }
 
 export function Header({ currentView, onNavigate, isLoggedIn, userData }: HeaderProps) {
+
     const router = useRouter()
     const { theme, toggleTheme } = useTheme()
-
 
     const handleLogout = async () => {
         await supabase.auth.signOut()
@@ -35,7 +46,8 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
     return (
         <header className="sticky top-0 z-50 w-full border-b border-border/40 bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
             <div className="container flex h-16 max-w-6xl mx-auto items-center justify-between px-4">
-                {/* Logo */}
+
+                {/* ✅ Logo ALWAYS Visible */}
                 <div
                     className="flex items-center gap-2 cursor-pointer group"
                     onClick={() => onNavigate('landing')}
@@ -43,94 +55,108 @@ export function Header({ currentView, onNavigate, isLoggedIn, userData }: Header
                     <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-md group-hover:scale-105 transition-transform">
                         <Utensils className="w-5 h-5 text-primary-foreground" />
                     </div>
-                    <span className="text-xl font-black text-foreground hidden sm:inline-block">CraveFit</span>
+                    <span className="text-xl font-black text-foreground hidden sm:inline-block">
+                        CraveFit
+                    </span>
                 </div>
 
-                {/* Navigation */}
-                <nav className="flex items-center gap-1 sm:gap-2">
-                    <Button
-                        variant={currentView === 'dashboard' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => onNavigate('dashboard')}
-                        className="flex items-center gap-2 font-semibold px-2 sm:px-3"
-                    >
-                        <LayoutDashboard className="w-4 h-4" />
-                        <span className="hidden lg:inline">Dashboard</span>
-                    </Button>
+                {/* ✅ Hide Navigation ONLY on Landing */}
+                {currentView !== 'landing' && (
+                    <nav className="flex items-center gap-1 sm:gap-2">
 
-                    <Button
-                        variant={currentView === 'quiz' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => onNavigate('quiz')}
-                        className="flex items-center gap-2 font-semibold text-primary px-2 sm:px-3"
-                    >
-                        <Sparkles className="w-4 h-4" />
-                        <span className="hidden lg:inline">Quiz</span>
-                    </Button>
+                        <Button
+                            variant={currentView === 'dashboard' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => onNavigate('dashboard')}
+                            className="flex items-center gap-2 font-semibold px-2 sm:px-3"
+                        >
+                            <LayoutDashboard className="w-4 h-4" />
+                            <span className="hidden lg:inline">Dashboard</span>
+                        </Button>
 
-                    <Button
-                        variant={currentView === 'browse' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => onNavigate('browse')}
-                        className="flex items-center gap-2 font-semibold px-2 sm:px-3"
-                    >
-                        <Search className="w-4 h-4" />
-                        <span className="hidden lg:inline">Foods</span>
-                    </Button>
+                        <Button
+                            variant={currentView === 'quiz' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => onNavigate('quiz')}
+                            className="flex items-center gap-2 font-semibold text-primary px-2 sm:px-3"
+                        >
+                            <Sparkles className="w-4 h-4" />
+                            <span className="hidden lg:inline">Quiz</span>
+                        </Button>
 
-                    <Button
-                        variant={currentView === 'meal-tracker' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => onNavigate('meal-tracker')}
-                        className="flex items-center gap-2 font-semibold px-2 sm:px-3"
-                    >
-                        <UtensilsCrossed className="w-4 h-4" />
-                        <span className="hidden lg:inline">Tracker</span>
-                    </Button>
+                        <Button
+                            variant={currentView === 'browse' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => onNavigate('browse')}
+                            className="flex items-center gap-2 font-semibold px-2 sm:px-3"
+                        >
+                            <Search className="w-4 h-4" />
+                            <span className="hidden lg:inline">Foods</span>
+                        </Button>
 
-                    <Button
-                        variant={currentView === 'chef' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => onNavigate('chef')}
-                        className="flex items-center gap-2 font-semibold px-2 sm:px-3"
-                    >
-                        <ChefHat className="w-4 h-4 text-foreground" />
-                        <span className="hidden lg:inline">Chef Buddy</span>
-                    </Button>
+                        <Button
+                            variant={currentView === 'meal-tracker' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => onNavigate('meal-tracker')}
+                            className="flex items-center gap-2 font-semibold px-2 sm:px-3"
+                        >
+                            <UtensilsCrossed className="w-4 h-4" />
+                            <span className="hidden lg:inline">Tracker</span>
+                        </Button>
 
-                    <Button
-                        variant={currentView === 'profile' ? 'secondary' : 'ghost'}
-                        size="sm"
-                        onClick={() => onNavigate('profile')}
-                        className="flex items-center gap-2 font-semibold p-1 sm:pr-3 rounded-full"
-                    >
-                        <div className="w-7 h-7 rounded-full overflow-hidden bg-muted flex items-center justify-center border border-border/50">
-                            {userData?.avatar_url ? (
-                                <img src={userData.avatar_url} alt="Profile" className="w-full h-full object-cover" />
-                            ) : (
-                                <UserCircle className="w-5 h-5 text-muted-foreground" />
-                            )}
-                        </div>
-                        <span className="hidden lg:inline">{userData?.full_name?.split(' ')[0] || 'Profile'}</span>
-                    </Button>
-                </nav>
+                        <Button
+                            variant={currentView === 'chef' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => onNavigate('chef')}
+                            className="flex items-center gap-2 font-semibold px-2 sm:px-3"
+                        >
+                            <ChefHat className="w-4 h-4" />
+                            <span className="hidden lg:inline">Chef Buddy</span>
+                        </Button>
 
-                <Button
-  variant="ghost"
-  size="icon"
-  onClick={toggleTheme}
-  className="rounded-full"
->
-  {theme === 'dark' ? (
-    <Sun className="w-4 h-4" />
-  ) : (
-    <Moon className="w-4 h-4" />
-  )}
-</Button>
+                        <Button
+                            variant={currentView === 'profile' ? 'secondary' : 'ghost'}
+                            size="sm"
+                            onClick={() => onNavigate('profile')}
+                            className="flex items-center gap-2 font-semibold p-1 sm:pr-3 rounded-full"
+                        >
+                            <div className="w-7 h-7 rounded-full overflow-hidden bg-muted flex items-center justify-center border border-border/50">
+                                {userData?.avatar_url ? (
+                                    <img
+                                        src={userData.avatar_url}
+                                        alt="Profile"
+                                        className="w-full h-full object-cover"
+                                    />
+                                ) : (
+                                    <UserCircle className="w-5 h-5 text-muted-foreground" />
+                                )}
+                            </div>
 
+                            <span className="hidden lg:inline">
+                                {userData?.full_name?.split(' ')[0] || 'Profile'}
+                            </span>
+                        </Button>
+                    </nav>
+                )}
 
-                {/* Auth Actions */}
+                {/* ✅ Right Side ALWAYS Visible */}
                 <div className="flex items-center gap-2">
+
+                    {/* Theme Toggle */}
+                    <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={toggleTheme}
+                        className="rounded-full"
+                    >
+                        {theme === 'dark' ? (
+                            <Sun className="w-4 h-4" />
+                        ) : (
+                            <Moon className="w-4 h-4" />
+                        )}
+                    </Button>
+
+                    {/* Auth Actions */}
                     {isLoggedIn ? (
                         <Button
                             variant="ghost"
