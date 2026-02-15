@@ -5,7 +5,7 @@ const API_KEY = process.env.NEXT_PUBLIC_FOODOSCOPE_KEY
 /* 🍽 MASTER RECIPES INFO */
 /* -------------------------------------------------- */
 
-export async function getRecipesInfo(page = 1, limit = 300) {
+export async function getRecipesInfo(page = 1, limit = 50) {
   try {
     console.log('RECIPES INFO REQUEST:', page)
 

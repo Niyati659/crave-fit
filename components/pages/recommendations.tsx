@@ -1,23 +1,35 @@
 'use client'
 
+/* -------------------------------------------------- */
+/* ⭐ GLOBAL CACHE */
+/* -------------------------------------------------- */
+
 let RECIPES_CACHE: any[] = []
 let DETAILS_CACHE: any = {}
 let INSTRUCTIONS_CACHE: any = {}
+
+/* -------------------------------------------------- */
+/* ⭐ IMPORTS */
+/* -------------------------------------------------- */
 
 import { useState, useEffect, useCallback } from 'react'
 import { Button } from '@/components/ui/button'
 import { Slider } from '@/components/ui/slider'
 import { ArrowLeft, Zap, Leaf } from 'lucide-react'
 import Image from 'next/image'
-import { supabase } from '@/lib/supabase'
-import { FoodDetailModal } from '@/components/recommendationfood-detail-modal'
+
 import {
   getRecipesInfo,
   getRecipeInstructions,
   getRecipeDetails,
-  searchRecipesByIngredientCategoriesTitle,
 } from '@/lib/api'
+
 import { getDishImage } from '@/lib/dish-image-service'
+import { FoodDetailModal } from '@/components/recommendationfood-detail-modal'
+
+/* -------------------------------------------------- */
+/* ⭐ PROPS */
+/* -------------------------------------------------- */
 
 interface RecommendationsScreenProps {
   quizMeta: any
@@ -25,8 +37,12 @@ interface RecommendationsScreenProps {
   onHealthPreferenceChange: (value: number) => void
   onBack: () => void
   onMealTrackerClick?: () => void
-  onCookWithChef?: (recipe: { name: string, instructions: string[] }) => void
+  onCookWithChef?: (recipe: { name: string; instructions: string[] }) => void
 }
+
+/* -------------------------------------------------- */
+/* ⭐ COMPONENT */
+/* -------------------------------------------------- */
 
 export function RecommendationsScreen({
   quizMeta,
@@ -43,61 +59,223 @@ export function RecommendationsScreen({
   const [recipeImages, setRecipeImages] = useState<Record<string, string>>({})
 
   /* -------------------------------------------------- */
-  /* FETCH LOGIC (UNCHANGED) */
+  /* ⭐ SLIDER → CALORIES ENGINE */
+  /* -------------------------------------------------- */
+
+  const getSliderCaloriesLimit = () => {
+    const MIN_LIMIT = 250
+    const MAX_LIMIT = 900
+    const ratio = healthPreference / 100
+
+    return Math.round(
+      MAX_LIMIT - ratio * (MAX_LIMIT - MIN_LIMIT)
+    )
+  }
+
+  /* -------------------------------------------------- */
+  /* ⭐ FILTERING */
+  /* -------------------------------------------------- */
+
+  const dietMatch = (recipe: any) => {
+    if (!quizMeta.dietFilter) return true
+
+    switch (quizMeta.dietFilter) {
+      case 'vegan':
+        return recipe.isVegan
+      case 'vegetarian':
+        return recipe.isVegetarian
+      case 'high protein':
+        return recipe.protein >= 25
+      default:
+        return true
+    }
+  }
+
+  const getRelaxedRecipes = (recipes: any[]) => {
+    const sliderLimit = getSliderCaloriesLimit()
+
+    let strict = recipes.filter(
+      (recipe) =>
+        recipe.calories >= quizMeta.calorieRange.min &&
+        recipe.calories <=
+          Math.min(quizMeta.calorieRange.max, sliderLimit) &&
+        recipe.prepTime <= (quizMeta.maxPrepTime || 999) &&
+        dietMatch(recipe)
+    )
+
+    if (strict.length >= 10) return strict
+
+    /* RELAX */
+    return recipes.filter(
+      (recipe) =>
+        recipe.calories <= sliderLimit + 150 &&
+        recipe.prepTime <= (quizMeta.maxPrepTime || 999) + 15 &&
+        dietMatch(recipe)
+    )
+  }
+
+  /* -------------------------------------------------- */
+  /* ⭐ RANKING */
+  /* -------------------------------------------------- */
+
+  const scoreRecipe = (recipe: any) => {
+    const proteinTarget = quizMeta.proteinTarget || 25
+
+    const proteinScore =
+      1 -
+      Math.abs(recipe.protein - proteinTarget) /
+        proteinTarget
+
+    const calorieMid =
+      (quizMeta.calorieRange.min +
+        quizMeta.calorieRange.max) /
+      2
+
+    const calorieScore =
+      1 -
+      Math.abs(recipe.calories - calorieMid) /
+        calorieMid
+
+    return proteinScore * 0.6 + calorieScore * 0.4
+  }
+
+  /* -------------------------------------------------- */
+  /* ⭐ FETCH + CACHE */
   /* -------------------------------------------------- */
 
   const fetchRecipes = useCallback(async () => {
     if (!quizMeta?.calorieRange) return
+
     try {
       setLoading(true)
 
+      /* CACHE LOAD */
       if (RECIPES_CACHE.length === 0) {
         let combined: any[] = []
+
         for (let page = 1; page <= 5; page++) {
           const data = await getRecipesInfo(page, 100)
-          combined = [...combined, ...(data.recipes || [])]
-          await new Promise(r => setTimeout(r, 3000))
+
+          combined = [
+            ...combined,
+            ...(data.recipes || []),
+          ]
+
+          await new Promise((r) =>
+            setTimeout(r, 300)
+          )
         }
+
         RECIPES_CACHE = combined
       }
 
-      const ranked = RECIPES_CACHE.slice(0, 12)
+      /* FILTER + RANK */
+      const filtered = getRelaxedRecipes(
+        RECIPES_CACHE
+      )
+
+      const ranked = filtered
+        .map((recipe) => ({
+          ...recipe,
+          score: scoreRecipe(recipe),
+        }))
+        .sort((a, b) => b.score - a.score)
+        .slice(0, 12)
+
       setRecipes(ranked)
 
+      /* IMAGE FETCH */
       const imgMap: Record<string, string> = {}
+
       await Promise.allSettled(
         ranked.map(async (r: any) => {
           try {
-            const img = await getDishImage(r.title)
+            const img = await getDishImage(
+              r.title
+            )
             if (img) imgMap[r.id] = img.url
           } catch {}
         })
       )
-      setRecipeImages(imgMap)
 
+      setRecipeImages(imgMap)
     } catch (err) {
       console.error(err)
     } finally {
       setLoading(false)
     }
-  }, [quizMeta])
+  }, [quizMeta, healthPreference])
 
   useEffect(() => {
     fetchRecipes()
   }, [fetchRecipes])
 
   /* -------------------------------------------------- */
-  /* UI */
+  /* ⭐ CLICK → DETAILS */
   /* -------------------------------------------------- */
 
-  return (
-    <div className="min-h-screen bg-background text-foreground flex flex-col transition-colors duration-300">
+  const handleRecipeClick = async (recipe: any) => {
+    setLoading(true)
 
-      {/* Header */}
-      <header className="sticky top-0 z-20 bg-background/70 backdrop-blur-md border-b border-border py-4 px-4">
+    let instructionsData
+    let detailsData
+
+    if (INSTRUCTIONS_CACHE[recipe.id]) {
+      instructionsData =
+        INSTRUCTIONS_CACHE[recipe.id]
+    } else {
+      instructionsData =
+        await getRecipeInstructions(recipe.id)
+      INSTRUCTIONS_CACHE[recipe.id] =
+        instructionsData
+    }
+
+    if (DETAILS_CACHE[recipe.id]) {
+      detailsData = DETAILS_CACHE[recipe.id]
+    } else {
+      detailsData = await getRecipeDetails(
+        recipe.id
+      )
+      DETAILS_CACHE[recipe.id] = detailsData
+    }
+
+    const fullRecipe = {
+      id: recipe.id,
+      name: recipe.title,
+      image:
+        recipeImages[recipe.id] ||
+        '/placeholder.svg',
+      prepTime: recipe.prepTime,
+      calories: recipe.calories,
+      protein: recipe.protein,
+      instructions:
+        instructionsData.instructions,
+      ingredients:
+        detailsData.ingredients.map(
+          (ing: any) => ing.ingredient
+        ),
+    }
+
+    setSelectedRecipe(fullRecipe)
+    setLoading(false)
+  }
+
+  /* -------------------------------------------------- */
+  /* ⭐ UI */
+/* -------------------------------------------------- */
+
+  return (
+    <div className="min-h-screen bg-background flex flex-col">
+
+      {/* HEADER */}
+      <header className="sticky top-0 z-20 bg-background/70 backdrop-blur border-b py-4 px-4">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
 
-          <Button variant="ghost" size="icon" onClick={onBack}>
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onBack}
+          >
             <ArrowLeft className="w-5 h-5" />
           </Button>
 
@@ -113,26 +291,31 @@ export function RecommendationsScreen({
         </div>
       </header>
 
+      {/* BODY */}
       <div className="flex-1 px-4 py-10">
         <div className="max-w-6xl mx-auto space-y-10">
 
-          {/* Craving Profile */}
+          {/* CRAVING */}
           {quizMeta?.cravingProfile && (
-            <div className="bg-primary/10 border border-primary/20 rounded-2xl p-6 text-center shadow-sm">
+            <div className="bg-primary/10 rounded-2xl p-6 text-center">
               <Zap className="w-5 h-5 text-primary mx-auto mb-2" />
-              <p className="text-2xl font-bold text-foreground">
+              <p className="text-2xl font-bold">
                 {quizMeta.cravingProfile}
               </p>
             </div>
           )}
 
-          {/* Health Slider */}
-          <div className="bg-card border border-border rounded-2xl p-6 space-y-4 shadow-sm">
+          {/* SLIDER */}
+          <div className="bg-card rounded-2xl p-6 border space-y-4">
             <Leaf className="w-4 h-4 text-primary mx-auto" />
 
             <Slider
               value={[healthPreference]}
-              onValueChange={(val) => onHealthPreferenceChange(val[0])}
+              onValueChange={(val) =>
+                onHealthPreferenceChange(
+                  val[0]
+                )
+              }
               min={0}
               max={100}
               step={1}
@@ -140,81 +323,74 @@ export function RecommendationsScreen({
 
             <p className="text-sm text-muted-foreground text-center">
               {healthPreference >= 70
-                ? "Healthy choices prioritized 🥗"
+                ? 'Healthy choices prioritized 🥗'
                 : healthPreference <= 30
-                  ? "Feeling indulgent today 😈"
-                  : "Balanced nutrition ⚖️"}
+                ? 'Feeling indulgent today 😈'
+                : 'Balanced nutrition ⚖️'}
             </p>
           </div>
 
-          {/* Recipes */}
+          {/* RECIPES */}
           {loading ? (
-            <div className="text-center text-muted-foreground">
+            <div className="text-center">
               Finding meals...
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
 
-              {recipes.map((recipe, index) => (
-                <div
-                  key={`${recipe.id}-${index}`}
-                  onClick={() => setSelectedRecipe(recipe)}
-                  className="
-                    rounded-2xl
-                    border border-border
-                    bg-card
-                    overflow-hidden
-                    cursor-pointer
-                    transition-all duration-300
-                    hover:-translate-y-1
-                    hover:shadow-xl
-                    hover:border-primary/40
-                  "
-                >
-                  {/* Image */}
-                  <div className="h-44 w-full relative bg-muted overflow-hidden">
-                    <Image
-                      src={recipeImages[recipe.id] || '/placeholder.svg'}
-                      alt={recipe.title}
-                      fill
-                      className="object-cover hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
+              {recipes.map(
+                (recipe, index) => (
+                  <div
+                    key={`${recipe.id}-${index}`}
+                    onClick={() =>
+                      handleRecipeClick(
+                        recipe
+                      )
+                    }
+                    className="rounded-2xl border bg-card overflow-hidden cursor-pointer hover:shadow-lg"
+                  >
+                    <div className="h-44 w-full relative">
+                      <Image
+                        src={
+                          recipeImages[
+                            recipe.id
+                          ] ||
+                          '/placeholder.svg'
+                        }
+                        alt={
+                          recipe.title ||
+                          'Food image'
+                        }
+                        fill
+                        className="object-cover"
+                      />
+                    </div>
 
-                  {/* Content */}
-                  <div className="p-4 space-y-2">
-                    <p className="font-bold text-foreground line-clamp-2">
-                      {recipe.title}
-                    </p>
-
-                    <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
-                      <span>{Math.round(recipe.calories)} kcal</span>
-
-                      {recipe.protein > 0 && (
-                        <span className="text-blue-400 font-medium">
-                          {Math.round(recipe.protein)}g protein
-                        </span>
-                      )}
-
-                      {recipe.carbs > 0 && (
-                        <span className="text-amber-400 font-medium">
-                          {Math.round(recipe.carbs)}g carbs
-                        </span>
-                      )}
+                    <div className="p-4 space-y-1">
+                      <p className="font-bold">
+                        {recipe.title}
+                      </p>
+                      <p className="text-sm text-muted-foreground">
+                        {Math.round(
+                          recipe.calories
+                        )}{' '}
+                        kcal
+                      </p>
                     </div>
                   </div>
-                </div>
-              ))}
-
+                )
+              )}
             </div>
           )}
-
         </div>
       </div>
 
+      {/* MODAL */}
       <FoodDetailModal
         recipe={selectedRecipe}
-        onClose={() => setSelectedRecipe(null)}
+        onClose={() =>
+          setSelectedRecipe(null)
+        }
         onCookWithChef={onCookWithChef}
       />
     </div>

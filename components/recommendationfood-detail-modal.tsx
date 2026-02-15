@@ -52,7 +52,7 @@ export function FoodDetailModal({ recipe, onClose, onCookWithChef }: FoodDetailM
           <div className="h-56 w-full relative rounded-xl overflow-hidden border border-border/30">
             <Image
               src={recipe.image || '/placeholder.svg'}
-              alt={recipe.name}
+              alt={recipe.name || 'Recipe Image'}
               fill
               className="object-cover"
             />
